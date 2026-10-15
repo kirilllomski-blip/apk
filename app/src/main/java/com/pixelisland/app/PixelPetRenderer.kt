@@ -385,7 +385,7 @@ class PixelPetRenderer(private val context: Context) {
                 drawBrick(canvas, burgerX + bSize * 1.2f, burgerY, bSize * 1.2f, C_BURGER_BUN)
 
                 drawBrick(canvas, burgerX, burgerY + bSize * 0.8f, bSize * 1.2f, C_BURGER_SAL)
-                drawBrick(canvas, burgerX + bSize * 1.2f, burgerY + bSize * 0.8f, C_BURGER_CHZ)
+                drawBrick(canvas, burgerX + bSize * 1.2f, burgerY + bSize * 0.8f, bSize * 1.2f, C_BURGER_CHZ)
 
                 drawBrick(canvas, burgerX, burgerY + bSize * 1.6f, bSize * 1.2f, C_BURGER_MEAT)
                 drawBrick(canvas, burgerX + bSize * 1.2f, burgerY + bSize * 1.6f, bSize * 1.2f, C_BURGER_BUN)
