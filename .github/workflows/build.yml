@@ -29,17 +29,16 @@ jobs:
 
       - name: Build Debug APK
         run: |
-          gradle assembleDebug --stacktrace 2>&1 | tee gradle_output.log
-
-      - name: Upload Build Log on Failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradle-build-log
-          path: gradle_output.log
+          if ! gradle assembleDebug --stacktrace 2>&1 | tee gradle_output.log; then
+            echo "::error::Gradle assembleDebug failed!"
+            echo "=== SEARCHING ERRORS ==="
+            grep -E "(e: |error: |FAILURE: )" gradle_output.log -A 2 || true
+            echo "=== TAIL 40 ==="
+            tail -n 40 gradle_output.log
+            exit 1
+          fi
 
       - name: Upload APK Artifact
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: PixelDynamicIsland-APK
