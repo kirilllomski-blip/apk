@@ -26,6 +26,12 @@ class IslandOverlayView(context: Context) : View(context) {
     private val renderer = PixelPetRenderer(context)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    private val density = context.resources.displayMetrics.density
+    private val scaledDensity = context.resources.displayMetrics.scaledDensity
+
+    private fun dp(value: Float): Float = value * density
+    private fun sp(value: Float): Float = value * scaledDensity
+
     private val capsuleRect = RectF()
     private val btnFeedRect = RectF()
     private val btnHeartRect = RectF()
@@ -42,7 +48,7 @@ class IslandOverlayView(context: Context) : View(context) {
     private val capsuleHighlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#252B36")
         style = Paint.Style.STROKE
-        strokeWidth = dp(1.5f)
+        strokeWidth = 1.5f * density
     }
 
     private val btnPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -53,13 +59,13 @@ class IslandOverlayView(context: Context) : View(context) {
     private val btnBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#323B49")
         style = Paint.Style.STROKE
-        strokeWidth = dp(1f)
+        strokeWidth = 1.0f * density
     }
 
     private val btnTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
         textAlign = Paint.Align.CENTER
-        textSize = sp(11.5f)
+        textSize = 11.5f * scaledDensity
         isFakeBoldText = true
     }
 
@@ -71,7 +77,7 @@ class IslandOverlayView(context: Context) : View(context) {
     private val acceptTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#0A2B14")
         textAlign = Paint.Align.CENTER
-        textSize = sp(12f)
+        textSize = 12f * scaledDensity
         isFakeBoldText = true
     }
 
@@ -83,7 +89,7 @@ class IslandOverlayView(context: Context) : View(context) {
     private val declineTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#FF5252")
         textAlign = Paint.Align.CENTER
-        textSize = sp(12f)
+        textSize = 12f * scaledDensity
         isFakeBoldText = true
     }
 
@@ -95,48 +101,48 @@ class IslandOverlayView(context: Context) : View(context) {
     private val friendBannerBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#00E5FF")
         style = Paint.Style.STROKE
-        strokeWidth = dp(1.5f)
+        strokeWidth = 1.5f * density
     }
 
     private val friendBannerTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#00E5FF")
-        textSize = sp(12f)
+        textSize = 12f * scaledDensity
         isFakeBoldText = true
         textAlign = Paint.Align.CENTER
     }
 
     private val statsLevelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#FFD700")
-        textSize = sp(10.5f)
+        textSize = 10.5f * scaledDensity
         isFakeBoldText = true
     }
 
     private val statsTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#E0E6ED")
-        textSize = sp(10f)
+        textSize = 10f * scaledDensity
         isFakeBoldText = true
     }
 
     private val pinkTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#FF4081")
-        textSize = sp(12.5f)
+        textSize = 12.5f * scaledDensity
         isFakeBoldText = true
     }
 
     private val partnerNotePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#00E5FF")
-        textSize = sp(12f)
+        textSize = 12f * scaledDensity
         isFakeBoldText = true
     }
 
     private val whiteTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
-        textSize = sp(12f)
+        textSize = 12f * scaledDensity
     }
 
     private val smallWhitePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
-        textSize = sp(10f)
+        textSize = 10f * scaledDensity
     }
 
     private val doomBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -146,7 +152,7 @@ class IslandOverlayView(context: Context) : View(context) {
 
     private val doomTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.BLACK
-        textSize = sp(11f)
+        textSize = 11f * scaledDensity
         isFakeBoldText = true
         textAlign = Paint.Align.CENTER
     }
@@ -177,9 +183,6 @@ class IslandOverlayView(context: Context) : View(context) {
             animHandler.postDelayed(this, delay)
         }
     }
-
-    private fun dp(value: Float): Float = value * resources.displayMetrics.density
-    private fun sp(value: Float): Float = value * resources.displayMetrics.scaledDensity
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val widthPx = dp(320f).toInt()

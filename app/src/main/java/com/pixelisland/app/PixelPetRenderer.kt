@@ -173,14 +173,14 @@ class PixelPetRenderer(private val context: Context) {
 
         // 1. АНИМАЦИЯ НАКЛОНА / ВИСЕНИЯ НА КРАЮ (TILT / HANGING)
         if (state.isHangingOnEdge) {
-            val pendulumAngle = (sin(time * 0.007) * 24.0).toFloat()
+            val pendulumAngle = sin(time * 0.007f) * 24f
             val pivotX = if (state.tiltOffsetPx < 0) dstRect.left + dstRect.width() * 0.2f else dstRect.right - dstRect.width() * 0.2f
             canvas.rotate(pendulumAngle, pivotX, dstRect.top)
 
             // Летящие капли пота от напряжения
             val sweatPhase = (time % 700) / 700f
             val sweatY = dstRect.top + sweatPhase * dstRect.height() * 0.9f
-            val sweatX = dstRect.centerX() + (sin(time * 0.02) * dstRect.width() * 0.35).toFloat()
+            val sweatX = dstRect.centerX() + sin(time * 0.02f) * dstRect.width() * 0.35f
             drawBrick(canvas, sweatX, sweatY, dstRect.width() * 0.08f, C_CYAN_GLOW)
         }
 
@@ -197,19 +197,19 @@ class PixelPetRenderer(private val context: Context) {
         // Анимации вертикального смещения (дыхание, бит музыки, прыжок)
         when (mode) {
             PetMode.IDLE -> {
-                val breathY = (sin(time * 0.004) * (bSize * 0.45f)).toFloat()
+                val breathY = sin(time * 0.004f) * (bSize * 0.45f)
                 startY += breathY
             }
             PetMode.CHARGING -> {
-                val floatY = (abs(sin(time * 0.012)) * (bSize * 1.6f)).toFloat()
+                val floatY = abs(sin(time * 0.012f)) * (bSize * 1.6f)
                 startY -= floatY
             }
             PetMode.MUSIC -> {
-                val beatY = (abs(sin(time * 0.01)) * (bSize * 1.2f)).toFloat()
+                val beatY = abs(sin(time * 0.01f)) * (bSize * 1.2f)
                 startY += beatY
             }
             PetMode.NOTIFICATION -> {
-                val jumpY = (abs(sin(time * 0.016)) * (bSize * 1.8f)).toFloat()
+                val jumpY = abs(sin(time * 0.016f)) * (bSize * 1.8f)
                 startY -= jumpY
             }
             else -> {}
@@ -223,7 +223,7 @@ class PixelPetRenderer(private val context: Context) {
         }
 
         // УШИ
-        val earTwitch = if (mode == PetMode.MUSIC) (sin(time * 0.02) * bSize * 0.6f).toFloat() else 0f
+        val earTwitch = if (mode == PetMode.MUSIC) (sin(time * 0.02f) * bSize * 0.6f) else 0f
         drawBrick(canvas, startX + bSize * 2, startY + bSize * 1 + earTwitch, bSize, C_TITAN_MID)
         drawBrick(canvas, startX + bSize * 3, startY + bSize * 2, bSize, C_CYAN_GLOW)
         drawBrick(canvas, startX + bSize * 10, startY + bSize * 2, bSize, C_CYAN_GLOW)
@@ -270,7 +270,7 @@ class PixelPetRenderer(private val context: Context) {
 
         // ПЕРЕДНИЕ ЛАПЫ (Стук по экрану в режиме Doomscroll / махи в уведомлениях)
         val tapPaw = if (isDoomscroll && (time % 360 < 180)) -bSize * 1.3f else 0f
-        val notifWave = if (mode == PetMode.NOTIFICATION) (sin(time * 0.02) * bSize * 0.8f).toFloat() else 0f
+        val notifWave = if (mode == PetMode.NOTIFICATION) (sin(time * 0.02f) * bSize * 0.8f) else 0f
 
         drawBrick(canvas, startX + bSize * 4, startY + bSize * 10 + tapPaw + notifWave, bSize, C_WHITE_ARMOR)
         drawBrick(canvas, startX + bSize * 5, startY + bSize * 10, bSize, C_TITAN_DARK)
@@ -278,7 +278,7 @@ class PixelPetRenderer(private val context: Context) {
         drawBrick(canvas, startX + bSize * 9, startY + bSize * 10 - notifWave, bSize, C_WHITE_ARMOR)
 
         // ХВОСТ (ДИНАМИЧЕСКИЙ СИНУС-МАЯТНИК)
-        val tailWave = (sin(time * 0.008) * bSize * 1.5f).toFloat()
+        val tailWave = sin(time * 0.008f) * bSize * 1.5f
         drawBrick(canvas, startX + bSize * 11, startY + bSize * 8, bSize, C_TITAN_DARK)
         drawBrick(canvas, startX + bSize * 12 + tailWave * 0.5f, startY + bSize * 7, bSize, C_CYAN_GLOW)
         drawBrick(canvas, startX + bSize * 12.5f + tailWave, startY + bSize * 6, bSize, C_NEON_CYAN)
@@ -307,12 +307,12 @@ class PixelPetRenderer(private val context: Context) {
             // Летящие вверх ноты
             val note1T = (time % 1000) / 1000f
             val note1Y = startY + bSize * 5 - note1T * (bSize * 8f)
-            val note1X = startX - bSize * 2 + (sin(time * 0.008) * bSize * 1.5f).toFloat()
+            val note1X = startX - bSize * 2 + sin(time * 0.008f) * bSize * 1.5f
             drawBrick(canvas, note1X, note1Y, bSize * 0.7f, C_CYAN_GLOW)
 
             val note2T = ((time + 500) % 1000) / 1000f
             val note2Y = startY + bSize * 5 - note2T * (bSize * 8f)
-            val note2X = startX + bSize * 12 + (sin(time * 0.006) * bSize * 1.5f).toFloat()
+            val note2X = startX + bSize * 12 + sin(time * 0.006f) * bSize * 1.5f
             drawBrick(canvas, note2X, note2Y, bSize * 0.7f, C_GOLD)
         }
 
@@ -392,10 +392,10 @@ class PixelPetRenderer(private val context: Context) {
             } else {
                 // Взрыв золотых кубиков опыта +XP
                 for (k in 0..5) {
-                    val angle = (k * 60.0) * (Math.PI / 180.0)
+                    val angle = (k * 60f) * (Math.PI.toFloat() / 180f)
                     val dist = (burgerPhase - 0.65f) * bSize * 12f
-                    val xpX = startX + bSize * 6f + (cos(angle) * dist).toFloat()
-                    val xpY = startY + bSize * 4f + (sin(angle) * dist).toFloat()
+                    val xpX = startX + bSize * 6f + cos(angle) * dist
+                    val xpY = startY + bSize * 4f + sin(angle) * dist
                     drawBrick(canvas, xpX, xpY, bSize * 0.8f, C_GOLD)
                 }
             }
