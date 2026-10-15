@@ -29,7 +29,14 @@ jobs:
 
       - name: Build Debug APK
         run: |
-          gradle assembleDebug --stacktrace > build.log 2>&1 || (grep -E "(e: |error:|FAILURE:|BUILD FAILED)" build.log -B 2 -A 5; tail -n 60 build.log; exit 1)
+          if ! gradle assembleDebug --stacktrace > build.log 2>&1; then
+            ERR_MSG=$(grep -E "(e: |error:)" build.log | head -n 10 | tr '\n' ' | ')
+            if [ -z "$ERR_MSG" ]; then
+              ERR_MSG=$(tail -n 20 build.log | tr '\n' ' | ')
+            fi
+            echo "::error::$ERR_MSG"
+            exit 1
+          fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
