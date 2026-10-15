@@ -36,7 +36,15 @@ data class IslandState(
     val tiltOffsetPx: Float = 0f,
     val isHangingOnEdge: Boolean = false,
     val doomscrollWarning: String? = null,
-    val partnerNoteText: String? = null
+    val partnerNoteText: String? = null,
+    val hunger: Int = 85,
+    val energy: Int = 90,
+    val mood: Int = 75,
+    val petLevel: Int = 1,
+    val xp: Int = 30,
+    val myUsername: String = "",
+    val partnerUsername: String = "",
+    val incomingFriendRequestFrom: String? = null
 )
 
 object IslandStateBus {
@@ -227,5 +235,61 @@ object IslandStateBus {
         }
         partnerNoteRunnable = runnable
         handler.postDelayed(runnable, 7000L)
+    }
+
+    fun feedPet() {
+        _state.update { current ->
+            val newHunger = (current.hunger + 20).coerceAtMost(100)
+            var newXp = current.xp + 15
+            var newLevel = current.petLevel
+            if (newXp >= 100) {
+                newLevel++
+                newXp -= 100
+            }
+            current.copy(
+                hunger = newHunger,
+                xp = newXp,
+                petLevel = newLevel,
+                petMode = PetMode.HAPPY
+            )
+        }
+        partnerHeartRunnable?.let { handler.removeCallbacks(it) }
+        val runnable = Runnable {
+            recalculatePetMode()
+        }
+        partnerHeartRunnable = runnable
+        handler.postDelayed(runnable, 4000L)
+    }
+
+    fun playWithPet() {
+        _state.update { current ->
+            val newMood = (current.mood + 20).coerceAtMost(100)
+            var newXp = current.xp + 10
+            var newLevel = current.petLevel
+            if (newXp >= 100) {
+                newLevel++
+                newXp -= 100
+            }
+            current.copy(
+                mood = newMood,
+                xp = newXp,
+                petLevel = newLevel,
+                petMode = PetMode.HAPPY
+            )
+        }
+        partnerHeartRunnable?.let { handler.removeCallbacks(it) }
+        val runnable = Runnable {
+            recalculatePetMode()
+        }
+        partnerHeartRunnable = runnable
+        handler.postDelayed(runnable, 4000L)
+    }
+
+    fun setIncomingRequest(fromUser: String?) {
+        _state.update { it.copy(incomingFriendRequestFrom = fromUser) }
+    }
+
+    fun setUsernames(me: String, partner: String) {
+        _state.update { it.copy(myUsername = me, partnerUsername = partner) }
     }
 }
