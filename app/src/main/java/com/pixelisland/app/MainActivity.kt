@@ -37,7 +37,7 @@ import java.io.FileOutputStream
 
 class MainActivity : Activity() {
 
-    private var activeTab = 0 // 0: Питомец, 1: Конструктор/Позиция, 2: Пара, 3: Тесты
+    private var activeTab = 0
     private val tabButtons = mutableListOf<TextView>()
     private val tabContainers = mutableListOf<LinearLayout>()
 
@@ -46,6 +46,7 @@ class MainActivity : Activity() {
     private var btnWatchAd: Button? = null
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+    private fun dp(value: Float): Float = value * resources.displayMetrics.density
     private fun sp(value: Float): Float = value * resources.displayMetrics.scaledDensity
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,7 +107,7 @@ class MainActivity : Activity() {
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#152D25"))
                 setStroke(dp(1), Color.parseColor("#275A48"))
-                cornerRadius = dp(20).toFloat()
+                cornerRadius = dp(20f)
             }
             setOnClickListener {
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -120,7 +121,7 @@ class MainActivity : Activity() {
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#141821"))
                 setStroke(dp(1), Color.parseColor("#242B3B"))
-                cornerRadius = dp(22).toFloat()
+                cornerRadius = dp(22f)
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -141,7 +142,7 @@ class MainActivity : Activity() {
             setPadding(dp(10), dp(4), dp(10), dp(4))
             background = GradientDrawable().apply {
                 setColor(Color.argb(190, 15, 20, 28))
-                cornerRadius = dp(12).toFloat()
+                cornerRadius = dp(12f)
             }
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -154,7 +155,7 @@ class MainActivity : Activity() {
         previewCard.addView(hintPill)
         mainLayout.addView(previewCard)
 
-        // ==================== 3. НАВИГАЦИОННЫЕ ТАБЫ (ВКЛАДКИ) ====================
+        // ==================== 3. НАВИГАЦИОННЫЕ ТАБЫ ====================
         val tabsScroll = HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
@@ -187,50 +188,20 @@ class MainActivity : Activity() {
         tabsScroll.addView(tabsLayout)
         mainLayout.addView(tabsScroll)
 
-        // ==================== 4. КОНТЕЙНЕРЫ ДЛЯ ВКЛАДОК ====================
-
+        // ==================== 4. ХЕЛПЕРЫ ====================
         fun createCardContainer(): LinearLayout {
             return LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#151922"))
                     setStroke(dp(1), Color.parseColor("#222938"))
-                    cornerRadius = dp(18).toFloat()
+                    cornerRadius = dp(18f)
                 }
                 setPadding(dp(16), dp(16), dp(16), dp(16))
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 )
-            }
-        }
-
-        fun createStyledButton(
-            title: String,
-            bgColor: String = "#232A3B",
-            textColor: String = "#FFFFFF",
-            onClick: () -> Unit
-        ): Button {
-            return Button(this).apply {
-                text = title
-                setTextColor(Color.parseColor(textColor))
-                textSize = 13.5f
-                typeface = Typeface.DEFAULT_BOLD
-                isAllCaps = false
-                background = GradientDrawable().apply {
-                    setColor(Color.parseColor(bgColor))
-                    cornerRadius = dp(12).toFloat()
-                }
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(46)
-                ).apply {
-                    setMargins(0, dp(4), 0, dp(6))
-                }
-                setOnClickListener {
-                    vibrateQuick()
-                    onClick()
-                }
             }
         }
 
@@ -245,7 +216,7 @@ class MainActivity : Activity() {
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#10131B"))
                     setStroke(dp(1), Color.parseColor("#2B3346"))
-                    cornerRadius = dp(10).toFloat()
+                    cornerRadius = dp(10f)
                 }
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -276,13 +247,13 @@ class MainActivity : Activity() {
         tvCustomStatus = statusView
         petTab.addView(statusView)
 
-        val btnPick = createStyledButton("📁 Выбрать фото / GIF из галереи", "#6C5CE7") {
+        val btnPick = createStyledButton("📁 Выбрать фото / GIF из галереи", "#6C5CE7", "#FFFFFF") {
             val intent = Intent(Intent.ACTION_GET_CONTENT).apply { type = "image/*" }
             startActivityForResult(intent, 1001)
         }
         petTab.addView(btnPick)
 
-        val adBtn = createStyledButton("📺 Смотреть рекламу -> +12 часов", "#2D3436") {
+        val adBtn = createStyledButton("📺 Смотреть рекламу -> +12 часов", "#2D3436", "#FFFFFF") {
             RewardedAdManager.showRewardedAd(this) {
                 updateCustomPetStatus()
                 previewView?.invalidate()
@@ -320,7 +291,6 @@ class MainActivity : Activity() {
         var savedY = prefs.getInt("offset_y", 0)
         var savedScale = prefs.getFloat("island_scale", 1.0f)
 
-        // ДЖОЙСТИК-ПУЛЬТ
         val joystickFrame = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -343,7 +313,7 @@ class MainActivity : Activity() {
                 setTextColor(Color.WHITE)
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#222938"))
-                    cornerRadius = dp(10).toFloat()
+                    cornerRadius = dp(10f)
                 }
                 layoutParams = LinearLayout.LayoutParams(dp(54), dp(44)).apply {
                     setMargins(dp(3), dp(2), dp(3), dp(2))
@@ -371,7 +341,6 @@ class MainActivity : Activity() {
 
         posTab.addView(joystickFrame)
 
-        // Ползунок масштаба
         val scaleLabel = TextView(this).apply {
             text = String.format("Размер островка: %.2fx", savedScale)
             textSize = 12f
@@ -434,7 +403,7 @@ class MainActivity : Activity() {
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#262D3D"))
-                cornerRadius = dp(10).toFloat()
+                cornerRadius = dp(10f)
             }
             layoutParams = LinearLayout.LayoutParams(0, dp(42), 1f).apply { setMargins(0, 0, dp(4), 0) }
             setOnClickListener {
@@ -452,7 +421,7 @@ class MainActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#0984E3"))
-                cornerRadius = dp(10).toFloat()
+                cornerRadius = dp(10f)
             }
             layoutParams = LinearLayout.LayoutParams(0, dp(42), 1.5f).apply { setMargins(dp(4), 0, 0, 0) }
             setOnClickListener {
@@ -473,7 +442,7 @@ class MainActivity : Activity() {
         val noteBox = createStyledInput("Напиши записку (например: Люблю тебя ❤️)")
         pairTab.addView(noteBox)
 
-        val btnSendNote = createStyledButton("💌 Отправить записку и заряд на островок", "#E84393") {
+        val btnSendNote = createStyledButton("💌 Отправить записку и заряд на островок", "#E84393", "#FFFFFF") {
             val text = noteBox.text.toString().trim()
             if (text.isNotBlank()) {
                 FirebaseCoupleManager.sendPartnerNote(this, text)
@@ -492,7 +461,7 @@ class MainActivity : Activity() {
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#262D3D"))
-                cornerRadius = dp(10).toFloat()
+                cornerRadius = dp(10f)
             }
             layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f).apply { setMargins(0, 0, dp(4), 0) }
             setOnClickListener {
@@ -507,7 +476,7 @@ class MainActivity : Activity() {
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#262D3D"))
-                cornerRadius = dp(10).toFloat()
+                cornerRadius = dp(10f)
             }
             layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f).apply { setMargins(dp(4), 0, 0, 0) }
             setOnClickListener {
@@ -542,7 +511,7 @@ class MainActivity : Activity() {
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#222938"))
-                cornerRadius = dp(10).toFloat()
+                cornerRadius = dp(10f)
             }
             layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f).apply { setMargins(0, 0, dp(4), dp(8)) }
             setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
@@ -553,7 +522,7 @@ class MainActivity : Activity() {
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#222938"))
-                cornerRadius = dp(10).toFloat()
+                cornerRadius = dp(10f)
             }
             layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f).apply { setMargins(dp(4), 0, 0, dp(8)) }
             setOnClickListener { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
@@ -569,7 +538,7 @@ class MainActivity : Activity() {
                 setTextColor(Color.parseColor("#CBD5E1"))
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#1B212D"))
-                    cornerRadius = dp(10).toFloat()
+                    cornerRadius = dp(10f)
                 }
                 layoutParams = LinearLayout.LayoutParams(0, dp(38), 1f).apply {
                     setMargins(dp(2), dp(3), dp(2), dp(3))
@@ -597,7 +566,7 @@ class MainActivity : Activity() {
         })
         testsTab.addView(testRow2)
 
-        val btnToggle = createStyledButton("Развернуть / Свернуть островок", "#2D3436") {
+        val btnToggle = createStyledButton("Развернуть / Свернуть островок", "#2D3436", "#FFFFFF") {
             IslandStateBus.setExpanded(!IslandStateBus.state.value.isExpanded)
         }
         testsTab.addView(btnToggle)
@@ -612,6 +581,35 @@ class MainActivity : Activity() {
         updateCustomPetStatus()
     }
 
+    private fun createStyledButton(
+        title: String,
+        bgColor: String = "#232A3B",
+        textColor: String = "#FFFFFF",
+        onClick: () -> Unit
+    ): Button {
+        return Button(this).apply {
+            text = title
+            setTextColor(Color.parseColor(textColor))
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+            isAllCaps = false
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor(bgColor))
+                cornerRadius = dp(12f)
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(46)
+            ).apply {
+                setMargins(0, dp(4), 0, dp(6))
+            }
+            setOnClickListener {
+                vibrateQuick()
+                onClick()
+            }
+        }
+    }
+
     private fun selectTab(index: Int) {
         activeTab = index
         tabButtons.forEachIndexed { i, btn ->
@@ -619,13 +617,13 @@ class MainActivity : Activity() {
                 btn.setTextColor(Color.WHITE)
                 btn.background = GradientDrawable().apply {
                     setColor(Color.parseColor("#6C5CE7"))
-                    cornerRadius = dp(14).toFloat()
+                    cornerRadius = dp(14f)
                 }
             } else {
                 btn.setTextColor(Color.parseColor("#7A889B"))
                 btn.background = GradientDrawable().apply {
                     setColor(Color.parseColor("#151922"))
-                    cornerRadius = dp(14).toFloat()
+                    cornerRadius = dp(14f)
                 }
             }
         }
@@ -704,7 +702,6 @@ class MainActivity : Activity() {
         }
     }
 
-    // ==================== ИНТЕРАКТИВНАЯ ИГРУШКА-ПРЕДПРОСМОТР (CONSTRUCTOR SANDBOX) ====================
     inner class InteractiveToyPreviewView(context: Context) : View(context) {
 
         private val renderer = PixelPetRenderer(context)
@@ -714,7 +711,7 @@ class MainActivity : Activity() {
         private val cameraGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.parseColor("#1A2333")
             style = Paint.Style.STROKE
-            strokeWidth = dp(1).toFloat()
+            strokeWidth = dp(1f)
         }
         private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
@@ -766,15 +763,13 @@ class MainActivity : Activity() {
             val w = width.toFloat()
             val state = IslandStateBus.state.value
 
-            // 1. Вырез камеры телефона (имитация)
             val camCenterX = w / 2f
-            val camCenterY = dp(28).toFloat()
-            canvas.drawCircle(camCenterX, camCenterY, dp(7).toFloat(), cameraGlowPaint)
-            canvas.drawCircle(camCenterX, camCenterY, dp(6).toFloat(), cameraDotPaint)
+            val camCenterY = dp(28f)
+            canvas.drawCircle(camCenterX, camCenterY, dp(7f), cameraGlowPaint)
+            canvas.drawCircle(camCenterX, camCenterY, dp(6f), cameraDotPaint)
 
-            // 2. Интерактивная капсула островка (позиционируется в реальном времени)
-            val baseW = if (state.isExpanded) dp(210).toFloat() else dp(115).toFloat() * state.islandScale
-            val baseH = if (state.isExpanded) dp(70).toFloat() else dp(30).toFloat() * state.islandScale
+            val baseW = if (state.isExpanded) dp(210f) else dp(115f) * state.islandScale
+            val baseH = if (state.isExpanded) dp(70f) else dp(30f) * state.islandScale
 
             val pillLeft = (w - baseW) / 2f + (state.offsetX * 0.25f)
             val pillTop = camCenterY - (baseH / 2f) + (state.offsetY * 0.25f)
@@ -783,24 +778,22 @@ class MainActivity : Activity() {
             val radius = baseH / 2f
             canvas.drawRoundRect(pillRect, radius, radius, pillPaint)
 
-            // 3. Питомец внутри капсулы
-            val petSize = if (state.isExpanded) dp(32).toFloat() else dp(22).toFloat() * state.islandScale
+            val petSize = if (state.isExpanded) dp(32f) else dp(22f) * state.islandScale
             val petRect = if (state.isExpanded) {
-                RectF(pillRect.left + dp(10), pillRect.centerY() - petSize / 2f, pillRect.left + dp(10) + petSize, pillRect.centerY() + petSize / 2f)
+                RectF(pillRect.left + dp(10f), pillRect.centerY() - petSize / 2f, pillRect.left + dp(10f) + petSize, pillRect.centerY() + petSize / 2f)
             } else {
-                RectF(pillRect.right - dp(6) - petSize, pillRect.centerY() - petSize / 2f, pillRect.right - dp(6), pillRect.centerY() + petSize / 2f)
+                RectF(pillRect.right - dp(6f) - petSize, pillRect.centerY() - petSize / 2f, pillRect.right - dp(6f), pillRect.centerY() + petSize / 2f)
             }
 
             renderer.drawPet(canvas, petRect, state.petMode, frameIndex)
 
-            // 4. Текст/детали
             if (state.isExpanded) {
-                val tX = petRect.right + dp(8)
-                canvas.drawText("Pixel Island", tX, pillRect.top + dp(24), textPaint)
-                canvas.drawText("❤️ Сытый и довольный", tX, pillRect.top + dp(44), heartPaint)
+                val tX = petRect.right + dp(8f)
+                canvas.drawText("Pixel Island", tX, pillRect.top + dp(24f), textPaint)
+                canvas.drawText("❤️ Сытый и довольный", tX, pillRect.top + dp(44f), heartPaint)
             } else {
                 if (state.petMode == PetMode.MUSIC) {
-                    canvas.drawCircle(pillRect.left + dp(12), pillRect.centerY(), dp(3.5f).toFloat(), heartPaint)
+                    canvas.drawCircle(pillRect.left + dp(12f), pillRect.centerY(), dp(3.5f), heartPaint)
                 }
             }
         }
