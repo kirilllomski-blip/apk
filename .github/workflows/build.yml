@@ -29,14 +29,7 @@ jobs:
 
       - name: Build Debug APK
         run: |
-          if ! gradle assembleDebug --stacktrace 2>&1 | tee gradle_output.log; then
-            echo "::error::Gradle assembleDebug failed!"
-            echo "=== SEARCHING ERRORS ==="
-            grep -E "(e: |error: |FAILURE: )" gradle_output.log -A 2 || true
-            echo "=== TAIL 40 ==="
-            tail -n 40 gradle_output.log
-            exit 1
-          fi
+          gradle assembleDebug --stacktrace > build.log 2>&1 || (grep -E "(e: |error:|FAILURE:|BUILD FAILED)" build.log -B 2 -A 5; tail -n 60 build.log; exit 1)
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
