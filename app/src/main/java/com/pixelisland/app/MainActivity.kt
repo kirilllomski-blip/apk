@@ -1,12 +1,12 @@
 package com.pixelisland.app
 
 import android.app.Activity
+import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -18,655 +18,814 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
-import android.text.InputType
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
-import android.widget.FrameLayout
-import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 
 class MainActivity : Activity() {
 
-    private var activeTab = 0
-    private val tabButtons = mutableListOf<TextView>()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private var voxelRoomView: VoxelRoomView? = null
+    private var activeTab = 0 // 0: ТЕСТЫ, 1: ДРУЗЬЯ, 2: КАМЕРА, 3: СКИНЫ
+
+    private val dockButtons = mutableListOf<LinearLayout>()
     private val tabContainers = mutableListOf<LinearLayout>()
 
-    private var previewView: InteractiveToyPreviewView? = null
+    private var friendsTabContainer: LinearLayout? = null
     private var tvCustomStatus: TextView? = null
     private var btnWatchAd: Button? = null
 
+    // Цветовая палитра: Dark Tactical / Gunmetal Constructor
+    private val C_SCREEN_BG      = Color.parseColor("#0F121A")
+    private val C_CARD_BG        = Color.parseColor("#181D2A")
+    private val C_CARD_BORDER    = Color.parseColor("#2A344B")
+    private val C_DOCK_ITEM_BG   = Color.parseColor("#161B26")
+    private val C_DOCK_SELECTED  = Color.parseColor("#00B8D4")
+    private val C_BTN_BLUE       = Color.parseColor("#2563EB")
+    private val C_BTN_CYAN       = Color.parseColor("#00B8D4")
+    private val C_BTN_EMERALD    = Color.parseColor("#10B981")
+    private val C_BTN_AMBER      = Color.parseColor("#F59E0B")
+    private val C_BTN_DARK       = Color.parseColor("#242C3D")
+    private val C_TEXT_MUTED     = Color.parseColor("#94A3B8")
+
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
     private fun dp(value: Float): Float = value * resources.displayMetrics.density
-    private fun sp(value: Float): Float = value * resources.displayMetrics.scaledDensity
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         RewardedAdManager.initFromPrefs(this)
-        val prefs = getSharedPreferences("pixel_island_prefs", Context.MODE_PRIVATE)
+        FirebaseCoupleManager.init(this)
 
         val rootScrollView = ScrollView(this).apply {
-            setBackgroundColor(Color.parseColor("#0C0E14"))
+            setBackgroundColor(C_SCREEN_BG)
             isFillViewport = true
             overScrollMode = View.OVER_SCROLL_NEVER
         }
 
         val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(18), dp(16), dp(32))
+            setPadding(dp(14), dp(16), dp(14), dp(36))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         }
 
-        // ==================== 1. ВЕРХНИЙ ХЕДЕР ====================
-        val headerLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 0, 0, dp(14))
-        }
-
-        val titleContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-
-        val titleText = TextView(this).apply {
-            text = "Pixel Island 🏝️"
-            textSize = 21f
-            setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
-        }
-        val subtitleText = TextView(this).apply {
-            text = "Интерактивный тамагочи-островок"
-            textSize = 12f
-            setTextColor(Color.parseColor("#7E8B9B"))
-            setPadding(0, dp(2), 0, 0)
-        }
-        titleContainer.addView(titleText)
-        titleContainer.addView(subtitleText)
-        headerLayout.addView(titleContainer)
-
-        val statusPill = TextView(this).apply {
-            text = "● Островок"
-            textSize = 11f
-            setTextColor(Color.parseColor("#4ECCA3"))
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding(dp(12), dp(6), dp(12), dp(6))
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#152D25"))
-                setStroke(dp(1), Color.parseColor("#275A48"))
-                cornerRadius = dp(20f)
-            }
-            setOnClickListener {
-                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            }
-        }
-        headerLayout.addView(statusPill)
-        mainLayout.addView(headerLayout)
-
-        // ==================== 2. ЖИВАЯ ИГРУШКА-КОНСТРУКТОР (LIVE PREVIEW) ====================
-        val previewCard = FrameLayout(this).apply {
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#141821"))
-                setStroke(dp(1), Color.parseColor("#242B3B"))
-                cornerRadius = dp(22f)
-            }
+        // ==================== 1. ВЕРХНЯЯ СЦЕНА: VOXEL ROOM VIEW ====================
+        val roomView = VoxelRoomView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(130)
-            ).apply {
-                setMargins(0, 0, 0, dp(16))
-            }
+                dp(320)
+            )
         }
+        voxelRoomView = roomView
+        mainLayout.addView(roomView)
 
-        val toyPreview = InteractiveToyPreviewView(this)
-        previewView = toyPreview
-        previewCard.addView(toyPreview)
-
-        val hintPill = TextView(this).apply {
-            text = "Нажми на кота в островке!"
-            textSize = 10f
-            setTextColor(Color.parseColor("#A4B3C6"))
-            setPadding(dp(10), dp(4), dp(10), dp(4))
-            background = GradientDrawable().apply {
-                setColor(Color.argb(190, 15, 20, 28))
-                cornerRadius = dp(12f)
-            }
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-                setMargins(0, 0, 0, dp(8))
-            }
-        }
-        previewCard.addView(hintPill)
-        mainLayout.addView(previewCard)
-
-        // ==================== 3. НАВИГАЦИОННЫЕ ТАБЫ ====================
-        val tabsScroll = HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false
-            overScrollMode = View.OVER_SCROLL_NEVER
-            setPadding(0, 0, 0, dp(14))
-        }
-
-        val tabsLayout = LinearLayout(this).apply {
+        // ==================== 2. НИЖНИЙ ДОК ИЗ 5 БЛОЧНЫХ КНОПОК-КУБИКОВ ====================
+        val dockLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(14), 0, dp(14))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
         }
 
-        val tabTitles = listOf("🐾 Питомец", "📍 Позиция", "❤️ Пара", "⚡ Тесты")
-        tabTitles.forEachIndexed { index, title ->
-            val tabBtn = TextView(this).apply {
-                text = title
-                textSize = 13f
-                typeface = Typeface.DEFAULT_BOLD
-                gravity = Gravity.CENTER
-                setPadding(dp(16), dp(9), dp(16), dp(9))
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    setMargins(0, 0, dp(8), 0)
-                }
-                setOnClickListener { selectTab(index) }
-            }
-            tabButtons.add(tabBtn)
-            tabsLayout.addView(tabBtn)
-        }
-        tabsScroll.addView(tabsLayout)
-        mainLayout.addView(tabsScroll)
+        val dockItems = listOf(
+            Triple("🍔", "КОРМ", -1),      // -1: Действие (не вкладка)
+            Triple("⚡", "ТЕСТЫ", 0),
+            Triple("🤝", "ДРУЗЬЯ", 1),
+            Triple("🎯", "КАМЕРА", 2),
+            Triple("⚙️", "СКИНЫ", 3)
+        )
 
-        // ==================== 4. ХЕЛПЕРЫ ====================
-        fun createCardContainer(): LinearLayout {
-            return LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#151922"))
-                    setStroke(dp(1), Color.parseColor("#222938"))
-                    cornerRadius = dp(18f)
-                }
-                setPadding(dp(16), dp(16), dp(16), dp(16))
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-            }
-        }
-
-        fun createStyledInput(hintText: String, initialVal: String = ""): EditText {
-            return EditText(this).apply {
-                hint = hintText
-                setHintTextColor(Color.parseColor("#606C7E"))
-                setTextColor(Color.WHITE)
-                textSize = 13.5f
-                setText(initialVal)
-                setPadding(dp(14), dp(11), dp(14), dp(11))
-                background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#10131B"))
-                    setStroke(dp(1), Color.parseColor("#2B3346"))
-                    cornerRadius = dp(10f)
-                }
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    setMargins(0, dp(3), 0, dp(7))
-                }
-            }
-        }
-
-        // ==================== ВКЛАДКА 0: ПИТОМЕЦ ====================
-        val petTab = createCardContainer()
-
-        val petBadge = TextView(this).apply {
-            text = "КАСТОМИЗАЦИЯ ТАМАГОЧИ"
-            textSize = 11f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#00E5FF"))
-            setPadding(0, 0, 0, dp(4))
-        }
-        petTab.addView(petBadge)
-
-        val statusView = TextView(this).apply {
-            textSize = 13f
-            setTextColor(Color.parseColor("#FFD54F"))
-            setPadding(0, 0, 0, dp(12))
-        }
-        tvCustomStatus = statusView
-        petTab.addView(statusView)
-
-        val btnPick = createStyledButton("📁 Выбрать фото / GIF из галереи", "#6C5CE7", "#FFFFFF") {
-            val intent = Intent(Intent.ACTION_GET_CONTENT).apply { type = "image/*" }
-            startActivityForResult(intent, 1001)
-        }
-        petTab.addView(btnPick)
-
-        val adBtn = createStyledButton("📺 Смотреть рекламу -> +12 часов", "#2D3436", "#FFFFFF") {
-            RewardedAdManager.showRewardedAd(this) {
-                updateCustomPetStatus()
-                previewView?.invalidate()
-            }
-        }
-        btnWatchAd = adBtn
-        petTab.addView(adBtn)
-
-        val btnReset = createStyledButton("🔄 Сбросить скин на стандартного кота", "#1C212D", "#8A97A8") {
-            val ads = prefs.getInt("ads_watched_count", 0)
-            prefs.edit().putLong("custom_pet_expire_ms", 0L).apply()
-            IslandStateBus.updateCustomPetAuth(ads, 0L)
-            updateCustomPetStatus()
-            previewView?.invalidate()
-            Toast.makeText(this, "Скин сброшен на базового кота", Toast.LENGTH_SHORT).show()
-        }
-        petTab.addView(btnReset)
-
-        tabContainers.add(petTab)
-        mainLayout.addView(petTab)
-
-        // ==================== ВКЛАДКА 1: ПОЗИЦИЯ / КОНСТРУКТОР ====================
-        val posTab = createCardContainer()
-
-        val posBadge = TextView(this).apply {
-            text = "ТОЧНАЯ ПОДГОНКА ПОД КАМЕРУ"
-            textSize = 11f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#00E5FF"))
-            setPadding(0, 0, 0, dp(6))
-        }
-        posTab.addView(posBadge)
-
-        var savedX = prefs.getInt("offset_x", 0)
-        var savedY = prefs.getInt("offset_y", 0)
-        var savedScale = prefs.getFloat("island_scale", 1.0f)
-
-        val joystickFrame = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(0, dp(6), 0, dp(12))
-        }
-
-        fun updateCalibrationAndSave(nx: Int, ny: Int, ns: Float) {
-            savedX = nx
-            savedY = ny
-            savedScale = ns
-            prefs.edit().putInt("offset_x", savedX).putInt("offset_y", savedY).putFloat("island_scale", savedScale).apply()
-            IslandStateBus.updateCalibration(savedX, savedY, savedScale)
-            previewView?.invalidate()
-        }
-
-        fun createDpadBtn(symbol: String, onClick: () -> Unit): Button {
-            return Button(this).apply {
-                text = symbol
-                textSize = 16f
-                setTextColor(Color.WHITE)
-                background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#222938"))
-                    cornerRadius = dp(10f)
-                }
-                layoutParams = LinearLayout.LayoutParams(dp(54), dp(44)).apply {
-                    setMargins(dp(3), dp(2), dp(3), dp(2))
-                }
-                setOnClickListener {
-                    vibrateQuick()
-                    onClick()
-                }
-            }
-        }
-
-        val rowTop = LinearLayout(this).apply { gravity = Gravity.CENTER }
-        rowTop.addView(createDpadBtn("▲") { updateCalibrationAndSave(savedX, savedY - 4, savedScale) })
-        joystickFrame.addView(rowTop)
-
-        val rowMid = LinearLayout(this).apply { gravity = Gravity.CENTER }
-        rowMid.addView(createDpadBtn("◄") { updateCalibrationAndSave(savedX - 6, savedY, savedScale) })
-        rowMid.addView(createDpadBtn("● 0") { updateCalibrationAndSave(0, 0, 1.0f) })
-        rowMid.addView(createDpadBtn("►") { updateCalibrationAndSave(savedX + 6, savedY, savedScale) })
-        joystickFrame.addView(rowMid)
-
-        val rowBot = LinearLayout(this).apply { gravity = Gravity.CENTER }
-        rowBot.addView(createDpadBtn("▼") { updateCalibrationAndSave(savedX, savedY + 4, savedScale) })
-        joystickFrame.addView(rowBot)
-
-        posTab.addView(joystickFrame)
-
-        val scaleLabel = TextView(this).apply {
-            text = String.format("Размер островка: %.2fx", savedScale)
-            textSize = 12f
-            setTextColor(Color.parseColor("#A4B3C6"))
-        }
-        posTab.addView(scaleLabel)
-
-        val scaleSeek = SeekBar(this).apply {
-            max = 150
-            progress = ((savedScale - 0.5f) * 100).toInt().coerceIn(0, 150)
-            setPadding(0, dp(6), 0, dp(6))
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                    if (fromUser) {
-                        val ns = 0.5f + (progress / 100f)
-                        scaleLabel.text = String.format("Размер островка: %.2fx", ns)
-                        updateCalibrationAndSave(savedX, savedY, ns)
-                    }
-                }
-                override fun onStartTrackingTouch(sb: SeekBar?) {}
-                override fun onStopTrackingTouch(sb: SeekBar?) {}
-            })
-        }
-        posTab.addView(scaleSeek)
-
-        tabContainers.add(posTab)
-        mainLayout.addView(posTab)
-
-        // ==================== ВКЛАДКА 2: ПАРА ====================
-        val pairTab = createCardContainer()
-
-        val pairBadge = TextView(this).apply {
-            text = "СИНХРОНИЗАЦИЯ ПАРЫ (FIREBASE)"
-            textSize = 11f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#FF7675"))
-            setPadding(0, 0, 0, dp(8))
-        }
-        pairTab.addView(pairBadge)
-
-        val savedDbUrl = prefs.getString("database_url", "") ?: ""
-        val savedRoomCode = prefs.getString("room_code", "") ?: ""
-
-        val etDb = createStyledInput("URL базы: https://db.firebasedatabase.app", savedDbUrl)
-        pairTab.addView(etDb)
-
-        val etCode = createStyledInput("Код комнаты (например 777777)", savedRoomCode).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER
-        }
-        pairTab.addView(etCode)
-
-        val pairBtnsRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 0, 0, dp(6))
-        }
-
-        val btnDice = Button(this).apply {
-            text = "🎲 Код"
-            textSize = 12f
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#262D3D"))
-                cornerRadius = dp(10f)
-            }
-            layoutParams = LinearLayout.LayoutParams(0, dp(42), 1f).apply { setMargins(0, 0, dp(4), 0) }
-            setOnClickListener {
+        dockButtons.clear()
+        dockItems.forEach { (icon, title, tabIndex) ->
+            val itemBtn = createDockButton(icon, title, tabIndex == activeTab) {
                 vibrateQuick()
-                val rnd = (100000..999999).random().toString()
-                etCode.setText(rnd)
-            }
-        }
-        pairBtnsRow.addView(btnDice)
-
-        val btnConnect = Button(this).apply {
-            text = "🔗 Подключить"
-            textSize = 12f
-            setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#0984E3"))
-                cornerRadius = dp(10f)
-            }
-            layoutParams = LinearLayout.LayoutParams(0, dp(42), 1.5f).apply { setMargins(dp(4), 0, 0, 0) }
-            setOnClickListener {
-                vibrateQuick()
-                val url = etDb.text.toString().trim()
-                val code = etCode.text.toString().trim()
-                if (url.isBlank() || code.isBlank()) {
-                    Toast.makeText(this@MainActivity, "Заполните URL и код!", Toast.LENGTH_SHORT).show()
+                if (tabIndex == -1) {
+                    // [ 🍔 КОРМ ] — сразу кормит питомца без перехода во вкладку
+                    IslandStateBus.feedPet()
+                    Toast.makeText(this, "🍔 Кибер-Кот покормлен! (+20 сытости, +15 XP)", Toast.LENGTH_SHORT).show()
                 } else {
-                    FirebaseCoupleManager.startPairing(this@MainActivity, url, code)
-                    Toast.makeText(this@MainActivity, "Подключение к комнате $code...", Toast.LENGTH_SHORT).show()
+                    selectTab(tabIndex)
                 }
             }
+            dockButtons.add(itemBtn)
+            dockLayout.addView(itemBtn)
         }
-        pairBtnsRow.addView(btnConnect)
-        pairTab.addView(pairBtnsRow)
+        mainLayout.addView(dockLayout)
 
-        val noteBox = createStyledInput("Напиши записку (например: Люблю тебя ❤️)")
-        pairTab.addView(noteBox)
+        // ==================== 3. КОНТЕЙНЕРЫ ВКЛАДОК ====================
+        tabContainers.clear()
 
-        val btnSendNote = createStyledButton("💌 Отправить записку и заряд на островок", "#E84393", "#FFFFFF") {
-            val text = noteBox.text.toString().trim()
-            if (text.isNotBlank()) {
-                FirebaseCoupleManager.sendPartnerNote(this, text)
-                Toast.makeText(this, "Записка улетела на экран партнёра!", Toast.LENGTH_SHORT).show()
-                noteBox.setText("")
-            }
+        // Вкладка 0: ТЕСТЫ И АНИМАЦИИ
+        val tabTests = createTestsTab()
+        tabContainers.add(tabTests)
+        mainLayout.addView(tabTests)
+
+        // Вкладка 1: ДРУЗЬЯ ПО @USERNAME
+        val tabFriends = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         }
-        pairTab.addView(btnSendNote)
+        friendsTabContainer = tabFriends
+        rebuildFriendsTab()
+        tabContainers.add(tabFriends)
+        mainLayout.addView(tabFriends)
 
-        val coupleActionsRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-        }
-        val btnHeart = Button(this).apply {
-            text = "❤️ Погладить"
-            textSize = 12f
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#262D3D"))
-                cornerRadius = dp(10f)
-            }
-            layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f).apply { setMargins(0, 0, dp(4), 0) }
-            setOnClickListener {
-                vibrateQuick()
-                FirebaseCoupleManager.sendPartnerAction("HEART")
-                Toast.makeText(this@MainActivity, "❤️ Сердечко отправлено!", Toast.LENGTH_SHORT).show()
-            }
-        }
-        val btnVisit = Button(this).apply {
-            text = "🐾 В гости"
-            textSize = 12f
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#262D3D"))
-                cornerRadius = dp(10f)
-            }
-            layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f).apply { setMargins(dp(4), 0, 0, 0) }
-            setOnClickListener {
-                vibrateQuick()
-                FirebaseCoupleManager.sendPartnerAction("VISIT")
-                Toast.makeText(this@MainActivity, "🐾 Кот отправлен в гости на 20 сек!", Toast.LENGTH_SHORT).show()
-            }
-        }
-        coupleActionsRow.addView(btnHeart)
-        coupleActionsRow.addView(btnVisit)
-        pairTab.addView(coupleActionsRow)
+        // Вкладка 2: КАМЕРА (КАЛИБРОВКА)
+        val tabCamera = createCameraCalibrationTab()
+        tabContainers.add(tabCamera)
+        mainLayout.addView(tabCamera)
 
-        tabContainers.add(pairTab)
-        mainLayout.addView(pairTab)
-
-        // ==================== ВКЛАДКА 3: ТЕСТЫ И СИСТЕМА ====================
-        val testsTab = createCardContainer()
-
-        val testsBadge = TextView(this).apply {
-            text = "СИСТЕМНЫЕ РАЗРЕШЕНИЯ И ТЕСТЫ"
-            textSize = 11f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#FDCB6E"))
-            setPadding(0, 0, 0, dp(8))
-        }
-        testsTab.addView(testsBadge)
-
-        val permRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val btnPerm1 = Button(this).apply {
-            text = "⚙️ Спецвозможности"
-            textSize = 11.5f
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#222938"))
-                cornerRadius = dp(10f)
-            }
-            layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f).apply { setMargins(0, 0, dp(4), dp(8)) }
-            setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-        }
-        val btnPerm2 = Button(this).apply {
-            text = "🔔 Уведомления"
-            textSize = 11.5f
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#222938"))
-                cornerRadius = dp(10f)
-            }
-            layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f).apply { setMargins(dp(4), 0, 0, dp(8)) }
-            setOnClickListener { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
-        }
-        permRow.addView(btnPerm1)
-        permRow.addView(btnPerm2)
-        testsTab.addView(permRow)
-
-        fun createTestBtn(title: String, onClick: () -> Unit): Button {
-            return Button(this).apply {
-                text = title
-                textSize = 12f
-                setTextColor(Color.parseColor("#CBD5E1"))
-                background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#1B212D"))
-                    cornerRadius = dp(10f)
-                }
-                layoutParams = LinearLayout.LayoutParams(0, dp(38), 1f).apply {
-                    setMargins(dp(2), dp(3), dp(2), dp(3))
-                }
-                setOnClickListener {
-                    vibrateQuick()
-                    onClick()
-                    previewView?.invalidate()
-                }
-            }
-        }
-
-        val testRow1 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        testRow1.addView(createTestBtn("🎵 Музыка") { IslandStateBus.setMedia("Crystal Castles - Kerosene") })
-        testRow1.addView(createTestBtn("⏹️ Стоп") { IslandStateBus.setMedia(null) })
-        testRow1.addView(createTestBtn("⚡ Зарядка") { IslandStateBus.setCharging(true) })
-        testsTab.addView(testRow1)
-
-        val testRow2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        testRow2.addView(createTestBtn("💬 Сообщение") { IslandStateBus.setNotification("Telegram: Привет, котик!") })
-        testRow2.addView(createTestBtn("🌱 Рилсы") { IslandStateBus.triggerDoomscrollWarning("🌱 Хватит листать рилсы! Потрогай траву!") })
-        testRow2.addView(createTestBtn("🤸 Наклон") {
-            IslandStateBus.updateTilt(35f, true)
-            Handler(Looper.getMainLooper()).postDelayed({ IslandStateBus.updateTilt(0f, false) }, 4000L)
-        })
-        testsTab.addView(testRow2)
-
-        val btnToggle = createStyledButton("Развернуть / Свернуть островок", "#2D3436", "#FFFFFF") {
-            IslandStateBus.setExpanded(!IslandStateBus.state.value.isExpanded)
-        }
-        testsTab.addView(btnToggle)
-
-        tabContainers.add(testsTab)
-        mainLayout.addView(testsTab)
+        // Вкладка 3: СКИНЫ (GIF/PNG + PRO И TELEGRAM)
+        val tabSkins = createSkinsTab()
+        tabContainers.add(tabSkins)
+        mainLayout.addView(tabSkins)
 
         rootScrollView.addView(mainLayout)
         setContentView(rootScrollView)
 
         selectTab(0)
-        updateCustomPetStatus()
+        observeState()
     }
 
-    private fun createStyledButton(
-        title: String,
-        bgColor: String = "#232A3B",
-        textColor: String = "#FFFFFF",
-        onClick: () -> Unit
-    ): Button {
-        return Button(this).apply {
-            text = title
-            setTextColor(Color.parseColor(textColor))
-            textSize = 13.5f
-            typeface = Typeface.DEFAULT_BOLD
-            isAllCaps = false
+    override fun onDestroy() {
+        super.onDestroy()
+        scope.cancel()
+    }
+
+    private fun observeState() {
+        scope.launch {
+            IslandStateBus.state.collect { state ->
+                updateFriendBadge(state.incomingFriendRequestFrom != null)
+                rebuildFriendsTab()
+                updateCustomPetStatus()
+            }
+        }
+    }
+
+    // ==================== ДОК И ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ====================
+
+    private fun createDockButton(icon: String, label: String, isSelected: Boolean, onClick: () -> Unit): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(4), dp(8), dp(4), dp(8))
+            val lp = LinearLayout.LayoutParams(0, dp(64), 1f).apply {
+                setMargins(dp(3), 0, dp(3), 0)
+            }
+            layoutParams = lp
+
             background = GradientDrawable().apply {
-                setColor(Color.parseColor(bgColor))
+                setColor(C_DOCK_ITEM_BG)
                 cornerRadius = dp(12f)
+                setStroke(dp(1.5f), if (isSelected) C_DOCK_SELECTED else C_CARD_BORDER)
             }
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(46)
-            ).apply {
-                setMargins(0, dp(4), 0, dp(6))
+
+            val iconTv = TextView(context).apply {
+                text = icon
+                textSize = 19f
+                gravity = Gravity.CENTER
             }
-            setOnClickListener {
-                vibrateQuick()
-                onClick()
+
+            val labelTv = TextView(context).apply {
+                text = label
+                textSize = 9.5f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(if (isSelected) C_DOCK_SELECTED else C_TEXT_MUTED)
+                gravity = Gravity.CENTER
+                setPadding(0, dp(2), 0, 0)
             }
+
+            addView(iconTv)
+            addView(labelTv)
+
+            setOnClickListener { onClick() }
         }
     }
 
-    private fun selectTab(index: Int) {
-        activeTab = index
-        tabButtons.forEachIndexed { i, btn ->
-            if (i == index) {
-                btn.setTextColor(Color.WHITE)
-                btn.background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#6C5CE7"))
-                    cornerRadius = dp(14f)
-                }
+    private fun updateFriendBadge(hasIncomingRequest: Boolean) {
+        if (dockButtons.size > 2) {
+            val friendsDockBtn = dockButtons[2]
+            val labelTv = friendsDockBtn.getChildAt(1) as? TextView
+            if (hasIncomingRequest) {
+                labelTv?.text = "! Заявка"
+                labelTv?.setTextColor(C_BTN_AMBER)
             } else {
-                btn.setTextColor(Color.parseColor("#7A889B"))
-                btn.background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#151922"))
-                    cornerRadius = dp(14f)
+                labelTv?.text = "ДРУЗЬЯ"
+                if (activeTab == 1) {
+                    labelTv?.setTextColor(C_DOCK_SELECTED)
+                } else {
+                    labelTv?.setTextColor(C_TEXT_MUTED)
                 }
             }
         }
+    }
 
-        tabContainers.forEachIndexed { i, container ->
-            container.visibility = if (i == index) View.VISIBLE else View.GONE
+    private fun selectTab(tabIndex: Int) {
+        activeTab = tabIndex
+        for (i in tabContainers.indices) {
+            tabContainers[i].visibility = if (i == tabIndex) View.VISIBLE else View.GONE
+        }
+
+        // Обновляем визуальный фокус док-кнопок
+        for (i in dockButtons.indices) {
+            val btn = dockButtons[i]
+            val isCurrent = (i == tabIndex + 1) // +1 т.к. 0-я кнопка [ 🍔 КОРМ ]
+            val strokeColor = if (isCurrent) C_DOCK_SELECTED else C_CARD_BORDER
+            (btn.background as? GradientDrawable)?.setStroke(dp(1.5f), strokeColor)
+
+            val labelTv = btn.getChildAt(1) as? TextView
+            labelTv?.setTextColor(if (isCurrent) C_DOCK_SELECTED else C_TEXT_MUTED)
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        RewardedAdManager.initFromPrefs(this)
-        updateCustomPetStatus()
-        previewView?.startAnimation()
+    // ==================== ВКЛАДКА 0: ТЕСТЫ И АНИМАЦИИ ====================
+
+    private fun createTestsTab(): LinearLayout {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        // 1. Карточка разрешений системы
+        val permCard = createConstructorCard().apply {
+            addView(createSectionTitle("⚙️ РАЗРЕШЕНИЯ СИСТЕМЫ"))
+            addView(createDescriptionText("Для отображения островка поверх всех окон включите службы:"))
+
+            val btnAccess = createTacticalButton("🔓 1. Служба специальных возможностей (Островок)", C_BTN_BLUE) {
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            addView(btnAccess)
+
+            val btnNotif = createTacticalButton("🔔 2. Доступ к уведомлениям (Плеер и сообщения)", C_BTN_DARK) {
+                startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            }
+            addView(btnNotif)
+        }
+        layout.addView(permCard)
+
+        // 2. Карточка зрелищных 3D-анимаций
+        val testCard = createConstructorCard().apply {
+            addView(createSectionTitle("⚡️ ТЕСТЫ 3D-АНИМАЦИЙ КОНСТРУКТОРА"))
+            addView(createDescriptionText("Нажмите для проверки многокадровых эффектов кота на островке:"))
+
+            // Строка 1
+            val row1 = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(4), 0, dp(4))
+            }
+            row1.addView(createSmallTestButton("🎵 Тест: DJ Музыка", C_BTN_CYAN, 1f) {
+                vibrateQuick()
+                val current = IslandStateBus.state.value.mediaTitle
+                if (current != null) {
+                    IslandStateBus.setMedia(null)
+                    Toast.makeText(context, "Музыка выключена", Toast.LENGTH_SHORT).show()
+                } else {
+                    IslandStateBus.setMedia("Crystal Castles - Kerosene")
+                    Toast.makeText(context, "🎵 DJ-пульт и неоновые ноты запущены!", Toast.LENGTH_SHORT).show()
+                }
+            })
+            row1.addView(createSmallTestButton("⚡️ Тест: Энерго-Зарядка", C_BTN_EMERALD, 1f) {
+                vibrateQuick()
+                val isCharging = !IslandStateBus.state.value.isCharging
+                IslandStateBus.setCharging(isCharging)
+                Toast.makeText(context, if (isCharging) "⚡ Искры и энергетическое поле!" else "Зарядка отключена", Toast.LENGTH_SHORT).show()
+            })
+            addView(row1)
+
+            // Строка 2
+            val row2 = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(4), 0, dp(4))
+            }
+            row2.addView(createSmallTestButton("📩 Тест: Сообщение", C_BTN_BLUE, 1f) {
+                vibrateQuick()
+                IslandStateBus.setNotification("Telegram: Привет, напарник! 🐾")
+                Toast.makeText(context, "Конверт в лапах и облачко [ ! ]", Toast.LENGTH_SHORT).show()
+            })
+            row2.addView(createSmallTestButton("🚨 Тест: Анти-Рилсы", C_BTN_AMBER, 1f) {
+                vibrateQuick()
+                IslandStateBus.triggerDoomscrollWarning("🌱 Хватит листать рилсы! Потрогай траву!")
+                Toast.makeText(context, "Зум 1.4x, красные глаза и стук лапой!", Toast.LENGTH_SHORT).show()
+            })
+            addView(row2)
+
+            // Строка 3
+            val row3 = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(4), 0, dp(4))
+            }
+            row3.addView(createSmallTestButton("📐 Тест: Наклон", C_BTN_DARK, 1f) {
+                vibrateQuick()
+                IslandStateBus.updateTilt(36f, true)
+                Toast.makeText(context, "Кот повис на углу капсулы и раскачивается!", Toast.LENGTH_SHORT).show()
+                Handler(Looper.getMainLooper()).postDelayed({
+                    IslandStateBus.updateTilt(0f, false)
+                }, 5000L)
+            })
+            row3.addView(createSmallTestButton("🍔 Тест: Кормление", C_BTN_AMBER, 1f) {
+                vibrateQuick()
+                IslandStateBus.feedPet()
+                Toast.makeText(context, "3D Бургер падает, кот жует, салют XP!", Toast.LENGTH_SHORT).show()
+            })
+            addView(row3)
+        }
+        layout.addView(testCard)
+
+        return layout
     }
 
-    override fun onPause() {
-        super.onPause()
-        previewView?.stopAnimation()
+    // ==================== ВКЛАДКА 1: ДРУЗЬЯ ПО @USERNAME ====================
+
+    private fun rebuildFriendsTab() {
+        val container = friendsTabContainer ?: return
+        container.removeAllViews()
+
+        val state = IslandStateBus.state.value
+        val myName = FirebaseCoupleManager.getMyUsername(this)
+
+        // БЛОК 1: Твой никнейм
+        val myProfileCard = createConstructorCard().apply {
+            addView(createSectionTitle("👤 ТВОЙ НИКНЕЙМ"))
+            addView(createDescriptionText("Задай ник, по которому напарник сможет найти тебя:"))
+
+            val nameInput = createConstructorInput(if (myName.isNotBlank()) "@$myName" else "@").apply {
+                hint = "@твой_ник (например, ivan)"
+            }
+            addView(nameInput)
+
+            val btnSave = createTacticalButton("💾 Сохранить мой @ник", C_BTN_BLUE) {
+                vibrateQuick()
+                val raw = nameInput.text.toString()
+                FirebaseCoupleManager.registerMyUsername(this@MainActivity, raw) { success, msg ->
+                    Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
+                    rebuildFriendsTab()
+                }
+            }
+            addView(btnSave)
+        }
+        container.addView(myProfileCard)
+
+        // БЛОК 2: Входящая заявка в друзья (если есть)
+        if (!state.incomingFriendRequestFrom.isNullOrBlank()) {
+            val fromUser = state.incomingFriendRequestFrom
+            val reqCard = createConstructorCard().apply {
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#261E14"))
+                    cornerRadius = dp(14f)
+                    setStroke(dp(2f), C_BTN_AMBER)
+                }
+
+                addView(TextView(context).apply {
+                    text = "🔔 ВХОДЯЩАЯ ЗАЯВКА В ДРУЗЬЯ"
+                    setTextColor(C_BTN_AMBER)
+                    textSize = 13f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setPadding(0, 0, 0, dp(4))
+                })
+
+                addView(TextView(context).apply {
+                    text = "Пользователь @$fromUser хочет объединить островки в пару!"
+                    setTextColor(Color.WHITE)
+                    textSize = 12f
+                    setPadding(0, 0, 0, dp(12))
+                })
+
+                val btnRow = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                }
+
+                btnRow.addView(createSmallTestButton("✅ ПРИНЯТЬ", C_BTN_EMERALD, 1f) {
+                    vibrateQuick()
+                    FirebaseCoupleManager.acceptFriendRequest(this@MainActivity, fromUser)
+                    rebuildFriendsTab()
+                })
+
+                btnRow.addView(createSmallTestButton("❌ ОТКЛОНИТЬ", C_BTN_DARK, 1f) {
+                    vibrateQuick()
+                    FirebaseCoupleManager.declineFriendRequest(this@MainActivity)
+                    rebuildFriendsTab()
+                })
+
+                addView(btnRow)
+            }
+            container.addView(reqCard)
+        }
+
+        // БЛОК 3 / 4: Напарник не добавлен ИЛИ уже в паре
+        if (state.partnerUsername.isBlank()) {
+            val addFriendCard = createConstructorCard().apply {
+                addView(createSectionTitle("🤝 ДОБАВИТЬ НАПАРНИКА"))
+                addView(createDescriptionText("Введите ник друга для отправки инвайта:"))
+
+                val friendInput = createConstructorInput("@")
+                addView(friendInput)
+
+                val btnSendReq = createTacticalButton("🚀 Отправить заявку в друзья", C_BTN_CYAN) {
+                    vibrateQuick()
+                    val target = friendInput.text.toString()
+                    FirebaseCoupleManager.sendFriendRequest(this@MainActivity, target) { resultMsg ->
+                        Toast.makeText(this@MainActivity, resultMsg, Toast.LENGTH_LONG).show()
+                        rebuildFriendsTab()
+                    }
+                }
+                addView(btnSendReq)
+
+                addView(TextView(context).apply {
+                    text = "💡 Подсказка: для мгновенного теста прямо на одном экране введите ник @test"
+                    setTextColor(C_TEXT_MUTED)
+                    textSize = 10f
+                    setPadding(0, dp(8), 0, 0)
+                })
+            }
+            container.addView(addFriendCard)
+        } else {
+            // Напарник уже в паре
+            val partnerUser = state.partnerUsername
+            val activePairCard = createConstructorCard().apply {
+                background = GradientDrawable().apply {
+                    setColor(C_CARD_BG)
+                    cornerRadius = dp(14f)
+                    setStroke(dp(2f), C_BTN_EMERALD)
+                }
+
+                addView(TextView(context).apply {
+                    text = "🟢 НАПАРНИК ПОДКЛЮЧЕН: @$partnerUser"
+                    setTextColor(C_BTN_EMERALD)
+                    textSize = 13.5f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setPadding(0, 0, 0, dp(8))
+                })
+
+                addView(createDescriptionText("Отправка живых записок и действий на островок напарника:"))
+
+                val noteInput = createConstructorInput("").apply {
+                    hint = "Короткое сообщение на островок..."
+                }
+                addView(noteInput)
+
+                val btnSendNote = createTacticalButton("💬 Отправить сообщение на островок", C_BTN_CYAN) {
+                    vibrateQuick()
+                    val txt = noteInput.text.toString()
+                    if (txt.isNotBlank()) {
+                        FirebaseCoupleManager.sendPartnerNote(this@MainActivity, txt)
+                        noteInput.setText("")
+                    } else {
+                        Toast.makeText(this@MainActivity, "Введите текст сообщения", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                addView(btnSendNote)
+
+                val actionRow = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setPadding(0, dp(4), 0, dp(4))
+                }
+
+                actionRow.addView(createSmallTestButton("⚡️ Пнуть / Привет", C_BTN_EMERALD, 1f) {
+                    vibrateQuick()
+                    FirebaseCoupleManager.sendPartnerAction("POKE")
+                    IslandStateBus.playWithPet()
+                    Toast.makeText(context, "⚡️ Привет отправлен на островок @$partnerUser!", Toast.LENGTH_SHORT).show()
+                })
+
+                actionRow.addView(createSmallTestButton("🐾 Отправить кота в гости", C_BTN_BLUE, 1f) {
+                    vibrateQuick()
+                    FirebaseCoupleManager.sendPartnerAction("VISIT")
+                    Toast.makeText(context, "🐾 Кот побежал в гости к @$partnerUser!", Toast.LENGTH_SHORT).show()
+                })
+                addView(actionRow)
+
+                val btnUnpair = TextView(context).apply {
+                    text = "Отвязать друга"
+                    setTextColor(Color.parseColor("#EF4444"))
+                    textSize = 11f
+                    gravity = Gravity.CENTER
+                    setPadding(0, dp(12), 0, dp(4))
+                    setOnClickListener {
+                        vibrateQuick()
+                        FirebaseCoupleManager.unpairFriend(this@MainActivity)
+                        rebuildFriendsTab()
+                    }
+                }
+                addView(btnUnpair)
+            }
+            container.addView(activePairCard)
+        }
+    }
+
+    // ==================== ВКЛАДКА 2: КАЛИБРОВКА КАМЕРЫ ====================
+
+    private fun createCameraCalibrationTab(): LinearLayout {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        val prefs = getSharedPreferences("pixel_island_prefs", Context.MODE_PRIVATE)
+        val savedX = prefs.getInt("offset_x", 0)
+        val savedY = prefs.getInt("offset_y", 0)
+        val savedScale = prefs.getFloat("island_scale", 1.0f)
+
+        val calCard = createConstructorCard().apply {
+            addView(createSectionTitle("🎯 ТОЧНАЯ ПОДГОНКА ПОД КАМЕРУ"))
+            addView(createDescriptionText("Отрегулируйте положение островка под вырез вашей фронталки:"))
+
+            // 1. Смещение по горизонтали X
+            val tvX = TextView(context).apply {
+                text = "Смещение по X: $savedX px"
+                setTextColor(Color.WHITE)
+                textSize = 12f
+                setPadding(0, dp(6), 0, dp(2))
+            }
+            addView(tvX)
+
+            val seekX = SeekBar(context).apply {
+                max = 300
+                progress = savedX + 150
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(sb: SeekBar?, prog: Int, fromUser: Boolean) {
+                        val realX = prog - 150
+                        tvX.text = "Смещение по X: $realX px"
+                        prefs.edit().putInt("offset_x", realX).apply()
+                        IslandStateBus.updateCalibration(realX, prefs.getInt("offset_y", 0), prefs.getFloat("island_scale", 1.0f))
+                    }
+                    override fun onStartTrackingTouch(sb: SeekBar?) {}
+                    override fun onStopTrackingTouch(sb: SeekBar?) {}
+                })
+            }
+            addView(seekX)
+
+            // 2. Смещение по вертикали Y
+            val tvY = TextView(context).apply {
+                text = "Смещение по Y: $savedY px"
+                setTextColor(Color.WHITE)
+                textSize = 12f
+                setPadding(0, dp(8), 0, dp(2))
+            }
+            addView(tvY)
+
+            val seekY = SeekBar(context).apply {
+                max = 200
+                progress = savedY + 50
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(sb: SeekBar?, prog: Int, fromUser: Boolean) {
+                        val realY = prog - 50
+                        tvY.text = "Смещение по Y: $realY px"
+                        prefs.edit().putInt("offset_y", realY).apply()
+                        IslandStateBus.updateCalibration(prefs.getInt("offset_x", 0), realY, prefs.getFloat("island_scale", 1.0f))
+                    }
+                    override fun onStartTrackingTouch(sb: SeekBar?) {}
+                    override fun onStopTrackingTouch(sb: SeekBar?) {}
+                })
+            }
+            addView(seekY)
+
+            // 3. Масштаб
+            val scalePct = (savedScale * 100).toInt()
+            val tvScale = TextView(context).apply {
+                text = "Масштаб островка: $scalePct%"
+                setTextColor(Color.WHITE)
+                textSize = 12f
+                setPadding(0, dp(8), 0, dp(2))
+            }
+            addView(tvScale)
+
+            val seekScale = SeekBar(context).apply {
+                max = 120
+                progress = ((savedScale - 0.6f) * 100).toInt().coerceIn(0, 120)
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(sb: SeekBar?, prog: Int, fromUser: Boolean) {
+                        val realScale = 0.6f + (prog / 100f)
+                        val p = (realScale * 100).toInt()
+                        tvScale.text = "Масштаб островка: $p%"
+                        prefs.edit().putFloat("island_scale", realScale).apply()
+                        IslandStateBus.updateCalibration(prefs.getInt("offset_x", 0), prefs.getInt("offset_y", 0), realScale)
+                    }
+                    override fun onStartTrackingTouch(sb: SeekBar?) {}
+                    override fun onStopTrackingTouch(sb: SeekBar?) {}
+                })
+            }
+            addView(seekScale)
+
+            // Кнопка сброса по центру
+            val btnReset = createTacticalButton("🔄 Центрировать по умолчанию", C_BTN_DARK) {
+                vibrateQuick()
+                prefs.edit().putInt("offset_x", 0).putInt("offset_y", 0).putFloat("island_scale", 1.0f).apply()
+                seekX.progress = 150
+                seekY.progress = 50
+                seekScale.progress = 40
+                IslandStateBus.updateCalibration(0, 0, 1.0f)
+                Toast.makeText(context, "Калибровка сброшена в центр", Toast.LENGTH_SHORT).show()
+            }
+            addView(btnReset)
+        }
+        layout.addView(calCard)
+
+        return layout
+    }
+
+    // ==================== ВКЛАДКА 3: СКИНЫ (GIF/PNG + PRO И TELEGRAM) ====================
+
+    private fun createSkinsTab(): LinearLayout {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        // 1. Карточка загрузки кастомного скина
+        val skinCard = createConstructorCard().apply {
+            addView(createSectionTitle("🎨 СВОЙ ПИТОМЕЦ (GIF / PNG)"))
+            addView(createDescriptionText("Загрузите любую гифку или прозрачный PNG с любимым персонажем:"))
+
+            tvCustomStatus = TextView(context).apply {
+                textSize = 12.5f
+                setTextColor(C_BTN_AMBER)
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding(0, dp(4), 0, dp(8))
+            }
+            addView(tvCustomStatus)
+
+            val btnPick = createTacticalButton("📁 1. Выбрать картинку / GIF из Галереи", C_BTN_BLUE) {
+                vibrateQuick()
+                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                    type = "image/*"
+                }
+                startActivityForResult(intent, 1001)
+            }
+            addView(btnPick)
+
+            btnWatchAd = createTacticalButton("▶️ 2. Смотреть рекламу (+6 часов)", C_BTN_EMERALD) {
+                vibrateQuick()
+                RewardedAdManager.showAdForCustomPet(this@MainActivity) { success, msg ->
+                    Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
+                    updateCustomPetStatus()
+                }
+            }
+            addView(btnWatchAd)
+
+            val btnResetSkin = createTacticalButton("🗑️ Сбросить на стандартного 3D Кибер-Кота", C_BTN_DARK) {
+                vibrateQuick()
+                val targetFile = File(filesDir, "custom_pet_asset")
+                if (targetFile.exists()) {
+                    targetFile.delete()
+                }
+                IslandStateBus.notifyCustomPetFileChanged()
+                Toast.makeText(context, "Возвращен стандартный 3D Кибер-Кот конструктора", Toast.LENGTH_SHORT).show()
+                updateCustomPetStatus()
+            }
+            addView(btnResetSkin)
+        }
+        layout.addView(skinCard)
+
+        // 2. Карточка "🔑 Активация PRO и Коды из Telegram"
+        val proCard = createConstructorCard().apply {
+            addView(createSectionTitle("🔑 АКТИВАЦИЯ PRO И КОДЫ ИЗ TELEGRAM"))
+
+            val myDevId = RewardedAdManager.getShortDeviceId(this@MainActivity)
+            addView(TextView(context).apply {
+                text = "Твой ID устройства: $myDevId"
+                setTextColor(C_BTN_CYAN)
+                textSize = 13.5f
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding(0, 0, 0, dp(4))
+            })
+            addView(createDescriptionText("Отправьте этот ID автору в Telegram для получения личного вечного PRO-ключа."))
+
+            val keyInput = createConstructorInput("").apply {
+                hint = "Введи промокод TG12H или свой PRO-ключ"
+            }
+            addView(keyInput)
+
+            val btnRedeem = createTacticalButton("✅ АКТИВИРОВАТЬ КЛЮЧ", C_BTN_BLUE) {
+                vibrateQuick()
+                val entered = keyInput.text.toString().trim()
+                if (entered.equals("#GEN", ignoreCase = true)) {
+                    // Секретная панель администратора для генерации ключа покупателю
+                    showAdminKeyGeneratorDialog()
+                } else if (entered.isBlank()) {
+                    Toast.makeText(this@MainActivity, "Введите промокод или PRO-ключ", Toast.LENGTH_SHORT).show()
+                } else {
+                    val (success, message) = RewardedAdManager.redeemKey(this@MainActivity, entered)
+                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                    if (success) {
+                        keyInput.setText("")
+                    }
+                    updateCustomPetStatus()
+                }
+            }
+            addView(btnRedeem)
+
+            val btnTelegram = createTacticalButton("✈️ Взять бесплатный код или PRO в Telegram", C_BTN_CYAN) {
+                vibrateQuick()
+                try {
+                    val tgIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/your_channel_here"))
+                    startActivity(tgIntent)
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "Канал: https://t.me/your_channel_here", Toast.LENGTH_SHORT).show()
+                }
+            }
+            addView(btnTelegram)
+        }
+        layout.addView(proCard)
+
+        updateCustomPetStatus()
+        return layout
+    }
+
+    private fun showAdminKeyGeneratorDialog() {
+        val input = EditText(this).apply {
+            hint = "ID покупателя (например, A7F2)"
+            setTextColor(Color.WHITE)
+            setHintTextColor(C_TEXT_MUTED)
+            textSize = 14f
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#121622"))
+                cornerRadius = dp(8f)
+                setStroke(dp(1.2f), C_CARD_BORDER)
+            }
+        }
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(16), dp(20), dp(8))
+            addView(TextView(context).apply {
+                text = "🔑 Генератор PRO-ключей (Admin)"
+                setTextColor(Color.WHITE)
+                textSize = 15f
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding(0, 0, 0, dp(6))
+            })
+            addView(TextView(context).apply {
+                text = "Введите 4-значный ID покупателя:"
+                setTextColor(C_TEXT_MUTED)
+                textSize = 12f
+                setPadding(0, 0, 0, dp(12))
+            })
+            addView(input)
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(container)
+            .setPositiveButton("Сгенерировать и скопировать") { _, _ ->
+                val buyerId = input.text.toString().trim()
+                if (buyerId.length >= 2) {
+                    val generatedKey = RewardedAdManager.generateProKeyForDevice(buyerId)
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    val clip = ClipData.newPlainText("PRO Key", generatedKey)
+                    clipboard?.setPrimaryClip(clip)
+                    Toast.makeText(this, "Готово! Ключ $generatedKey скопирован в буфер", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this, "Введите корректный ID устройства", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Отмена", null)
+            .create()
+
+        dialog.window?.setBackgroundDrawable(GradientDrawable().apply {
+            setColor(C_CARD_BG)
+            cornerRadius = dp(14f)
+            setStroke(dp(2f), C_CARD_BORDER)
+        })
+        dialog.show()
     }
 
     private fun updateCustomPetStatus() {
+        val tv = tvCustomStatus ?: return
         val state = IslandStateBus.state.value
-        val timeFormatted = RewardedAdManager.getRemainingTimeFormatted(this)
-        tvCustomStatus?.text = "Статус: $timeFormatted | Просмотрено: ${state.adsWatchedCount}/2"
-        btnWatchAd?.text = "📺 Смотреть рекламу (${state.adsWatchedCount}/2) -> +12 часов"
-    }
 
-    private fun vibrateQuick() {
-        try {
-            val v = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                v?.vibrate(VibrationEffect.createOneShot(18L, VibrationEffect.DEFAULT_AMPLITUDE))
-            } else {
-                @Suppress("DEPRECATION")
-                v?.vibrate(18L)
-            }
-        } catch (ignored: Exception) {
+        if (state.isProLifetime || RewardedAdManager.isProUnlocked(this)) {
+            tv.text = "👑 PRO АКТИВЕН НАВСЕГДА"
+            tv.setTextColor(C_BTN_EMERALD)
+            btnWatchAd?.isEnabled = false
+            btnWatchAd?.text = "👑 Вечный PRO активен"
+        } else if (System.currentTimeMillis() < state.customPetExpireMs) {
+            val remain = RewardedAdManager.getRemainingTimeFormatted(this)
+            tv.text = "✅ Кастомный скин активен! Осталось: $remain"
+            tv.setTextColor(C_BTN_EMERALD)
+            btnWatchAd?.isEnabled = true
+            btnWatchAd?.text = "▶️ 2. Смотреть рекламу (+6 часов)"
+        } else {
+            tv.text = "🔒 Скин не активен. Просмотрено реклам: ${state.adsWatchedCount} / 2"
+            tv.setTextColor(C_BTN_AMBER)
+            btnWatchAd?.isEnabled = true
+            btnWatchAd?.text = "▶️ 2. Смотреть рекламу (+6 часов)"
         }
     }
 
@@ -683,129 +842,140 @@ class MainActivity : Activity() {
                         }
                     }
                     IslandStateBus.notifyCustomPetFileChanged()
-
-                    if (!RewardedAdManager.isCustomPetActive(this)) {
-                        Toast.makeText(
-                            this,
-                            "Питомец загружен! Посмотрите 2 рекламы, чтобы активировать его на 12 часов",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    } else {
-                        Toast.makeText(this, "Питомец успешно обновлен!", Toast.LENGTH_SHORT).show()
-                    }
+                    Toast.makeText(this, "Файл питомца успешно загружен!", Toast.LENGTH_SHORT).show()
                     updateCustomPetStatus()
-                    previewView?.invalidate()
                 } catch (e: Exception) {
-                    Toast.makeText(this, "Ошибка загрузки: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Ошибка загрузки файла: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
 
-    inner class InteractiveToyPreviewView(context: Context) : View(context) {
+    // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ДИЗАЙНА ====================
 
-        private val renderer = PixelPetRenderer(context)
-        private val pillRect = RectF()
-        private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK }
-        private val cameraDotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#090B0F") }
-        private val cameraGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#1A2333")
-            style = Paint.Style.STROKE
-            strokeWidth = dp(1f)
+    private fun createConstructorCard(): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 0, 0, dp(14))
+            }
+            layoutParams = lp
+
+            background = GradientDrawable().apply {
+                setColor(C_CARD_BG)
+                cornerRadius = dp(14f)
+                setStroke(dp(2f), C_CARD_BORDER)
+            }
         }
-        private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            textSize = sp(10.5f)
+    }
+
+    private fun createSectionTitle(title: String): TextView {
+        return TextView(this).apply {
+            text = title
+            textSize = 13.5f
+            setTextColor(Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD
+            setPadding(0, 0, 0, dp(4))
         }
-        private val heartPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#FF69B4")
-            textSize = sp(10f)
+    }
+
+    private fun createDescriptionText(desc: String): TextView {
+        return TextView(this).apply {
+            text = desc
+            textSize = 11.5f
+            setTextColor(C_TEXT_MUTED)
+            setPadding(0, 0, 0, dp(10))
+        }
+    }
+
+    private fun createConstructorInput(defaultText: String): EditText {
+        return EditText(this).apply {
+            setText(defaultText)
+            setTextColor(Color.WHITE)
+            setHintTextColor(C_TEXT_MUTED)
+            textSize = 13f
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 0, 0, dp(10))
+            }
+            layoutParams = lp
+
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#121622"))
+                cornerRadius = dp(10f)
+                setStroke(dp(1.2f), C_CARD_BORDER)
+            }
+        }
+    }
+
+    private fun createTacticalButton(title: String, bgColor: Int, onClick: () -> Unit): Button {
+        return Button(this).apply {
+            text = title
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            isAllCaps = false
             typeface = Typeface.DEFAULT_BOLD
-        }
-
-        private var frameIndex = 0
-        private val animHandler = Handler(Looper.getMainLooper())
-        private var isRunning = false
-
-        private val animRunnable = object : Runnable {
-            override fun run() {
-                frameIndex++
-                invalidate()
-                animHandler.postDelayed(this, 300L)
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(46)
+            ).apply {
+                setMargins(0, dp(4), 0, dp(6))
             }
-        }
+            layoutParams = lp
 
-        fun startAnimation() {
-            if (!isRunning) {
-                isRunning = true
-                animHandler.post(animRunnable)
+            background = GradientDrawable().apply {
+                setColor(bgColor)
+                cornerRadius = dp(10f)
             }
+
+            setOnClickListener { onClick() }
         }
+    }
 
-        fun stopAnimation() {
-            isRunning = false
-            animHandler.removeCallbacks(animRunnable)
+    private fun createSmallTestButton(title: String, bgColor: Int, weightVal: Float, onClick: () -> Unit): Button {
+        return Button(this).apply {
+            text = title
+            setTextColor(Color.WHITE)
+            textSize = 11.5f
+            isAllCaps = false
+            typeface = Typeface.DEFAULT_BOLD
+            val lp = LinearLayout.LayoutParams(0, dp(44), weightVal).apply {
+                setMargins(dp(3), 0, dp(3), 0)
+            }
+            layoutParams = lp
+
+            background = GradientDrawable().apply {
+                setColor(bgColor)
+                cornerRadius = dp(9f)
+            }
+
+            setOnClickListener { onClick() }
         }
+    }
 
-        override fun onAttachedToWindow() {
-            super.onAttachedToWindow()
-            startAnimation()
-        }
-
-        override fun onDetachedFromWindow() {
-            super.onDetachedFromWindow()
-            stopAnimation()
-        }
-
-        override fun onDraw(canvas: Canvas) {
-            super.onDraw(canvas)
-            val w = width.toFloat()
-            val state = IslandStateBus.state.value
-
-            val camCenterX = w / 2f
-            val camCenterY = dp(28f)
-            canvas.drawCircle(camCenterX, camCenterY, dp(7f), cameraGlowPaint)
-            canvas.drawCircle(camCenterX, camCenterY, dp(6f), cameraDotPaint)
-
-            val baseW = if (state.isExpanded) dp(210f) else dp(115f) * state.islandScale
-            val baseH = if (state.isExpanded) dp(70f) else dp(30f) * state.islandScale
-
-            val pillLeft = (w - baseW) / 2f + (state.offsetX * 0.25f)
-            val pillTop = camCenterY - (baseH / 2f) + (state.offsetY * 0.25f)
-            pillRect.set(pillLeft, pillTop, pillLeft + baseW, pillTop + baseH)
-
-            val radius = baseH / 2f
-            canvas.drawRoundRect(pillRect, radius, radius, pillPaint)
-
-            val petSize = if (state.isExpanded) dp(32f) else dp(22f) * state.islandScale
-            val petRect = if (state.isExpanded) {
-                RectF(pillRect.left + dp(10f), pillRect.centerY() - petSize / 2f, pillRect.left + dp(10f) + petSize, pillRect.centerY() + petSize / 2f)
+    private fun vibrateQuick() {
+        try {
+            val v = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vm?.defaultVibrator ?: (getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator)
             } else {
-                RectF(pillRect.right - dp(6f) - petSize, pillRect.centerY() - petSize / 2f, pillRect.right - dp(6f), pillRect.centerY() + petSize / 2f)
+                @Suppress("DEPRECATION")
+                getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
             }
-
-            renderer.drawPet(canvas, petRect, state.petMode, frameIndex)
-
-            if (state.isExpanded) {
-                val tX = petRect.right + dp(8f)
-                canvas.drawText("Pixel Island", tX, pillRect.top + dp(24f), textPaint)
-                canvas.drawText("❤️ Сытый и довольный", tX, pillRect.top + dp(44f), heartPaint)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                v?.vibrate(VibrationEffect.createOneShot(18L, VibrationEffect.DEFAULT_AMPLITUDE))
             } else {
-                if (state.petMode == PetMode.MUSIC) {
-                    canvas.drawCircle(pillRect.left + dp(12f), pillRect.centerY(), dp(3.5f), heartPaint)
-                }
+                @Suppress("DEPRECATION")
+                v?.vibrate(18L)
             }
-        }
-
-        override fun onTouchEvent(event: MotionEvent): Boolean {
-            if (event.action == MotionEvent.ACTION_DOWN) {
-                vibrateQuick()
-                IslandStateBus.setExpanded(!IslandStateBus.state.value.isExpanded)
-                invalidate()
-                return true
-            }
-            return super.onTouchEvent(event)
+        } catch (ignored: Exception) {
         }
     }
 }

@@ -33,6 +33,7 @@ data class IslandState(
     val adsWatchedCount: Int = 0,
     val customPetExpireMs: Long = 0L,
     val customPetVersion: Int = 0,
+    val isProLifetime: Boolean = false,
     val tiltOffsetPx: Float = 0f,
     val isHangingOnEdge: Boolean = false,
     val doomscrollWarning: String? = null,
@@ -177,6 +178,12 @@ object IslandStateBus {
                 adsWatchedCount = adsCount,
                 customPetExpireMs = expireMs
             )
+        }
+    }
+
+    fun setProLifetime(isPro: Boolean) {
+        _state.update {
+            it.copy(isProLifetime = isPro)
         }
     }
 

@@ -158,7 +158,7 @@ class PixelPetRenderer(private val context: Context) {
         val state = IslandStateBus.state.value
         reloadCustomPetIfNeeded(state.customPetVersion)
 
-        val canUseCustom = (System.currentTimeMillis() < state.customPetExpireMs) &&
+        val canUseCustom = (state.isProLifetime || System.currentTimeMillis() < state.customPetExpireMs) &&
                 (customMovie != null || customBitmap != null)
 
         if (canUseCustom) {
