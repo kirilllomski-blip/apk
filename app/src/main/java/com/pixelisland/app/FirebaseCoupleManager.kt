@@ -46,6 +46,13 @@ object FirebaseCoupleManager {
         }
     }
 
+    fun startPairing(context: Context, dbUrl: String = "", roomCode: String = "") {
+        if (dbUrl.isNotBlank()) {
+            setCustomDbUrlIfNeeded(dbUrl)
+        }
+        init(context)
+    }
+
     fun init(context: Context) {
         appContext = context.applicationContext
         val prefs = context.getSharedPreferences("pixel_island_prefs", Context.MODE_PRIVATE)

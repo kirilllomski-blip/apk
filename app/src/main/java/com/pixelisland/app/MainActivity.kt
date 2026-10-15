@@ -197,7 +197,7 @@ class MainActivity : Activity() {
             background = GradientDrawable().apply {
                 setColor(C_DOCK_ITEM_BG)
                 cornerRadius = dp(12f)
-                setStroke(dp(1.5f), if (isSelected) C_DOCK_SELECTED else C_CARD_BORDER)
+                setStroke(dp(2), if (isSelected) C_DOCK_SELECTED else C_CARD_BORDER)
             }
 
             val iconTv = TextView(context).apply {
@@ -251,7 +251,7 @@ class MainActivity : Activity() {
             val btn = dockButtons[i]
             val isCurrent = (i == tabIndex + 1) // +1 т.к. 0-я кнопка [ 🍔 КОРМ ]
             val strokeColor = if (isCurrent) C_DOCK_SELECTED else C_CARD_BORDER
-            (btn.background as? GradientDrawable)?.setStroke(dp(1.5f), strokeColor)
+            (btn.background as? GradientDrawable)?.setStroke(dp(2), strokeColor)
 
             val labelTv = btn.getChildAt(1) as? TextView
             labelTv?.setTextColor(if (isCurrent) C_DOCK_SELECTED else C_TEXT_MUTED)
@@ -391,7 +391,7 @@ class MainActivity : Activity() {
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#261E14"))
                     cornerRadius = dp(14f)
-                    setStroke(dp(2f), C_BTN_AMBER)
+                    setStroke(dp(2), C_BTN_AMBER)
                 }
 
                 addView(TextView(context).apply {
@@ -464,7 +464,7 @@ class MainActivity : Activity() {
                 background = GradientDrawable().apply {
                     setColor(C_CARD_BG)
                     cornerRadius = dp(14f)
-                    setStroke(dp(2f), C_BTN_EMERALD)
+                    setStroke(dp(2), C_BTN_EMERALD)
                 }
 
                 addView(TextView(context).apply {
@@ -758,7 +758,7 @@ class MainActivity : Activity() {
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#121622"))
                 cornerRadius = dp(8f)
-                setStroke(dp(1.2f), C_CARD_BORDER)
+                setStroke(dp(1), C_CARD_BORDER)
             }
         }
 
@@ -801,7 +801,7 @@ class MainActivity : Activity() {
         dialog.window?.setBackgroundDrawable(GradientDrawable().apply {
             setColor(C_CARD_BG)
             cornerRadius = dp(14f)
-            setStroke(dp(2f), C_CARD_BORDER)
+            setStroke(dp(2), C_CARD_BORDER)
         })
         dialog.show()
     }
@@ -868,7 +868,7 @@ class MainActivity : Activity() {
             background = GradientDrawable().apply {
                 setColor(C_CARD_BG)
                 cornerRadius = dp(14f)
-                setStroke(dp(2f), C_CARD_BORDER)
+                setStroke(dp(2), C_CARD_BORDER)
             }
         }
     }
@@ -910,7 +910,7 @@ class MainActivity : Activity() {
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#121622"))
                 cornerRadius = dp(10f)
-                setStroke(dp(1.2f), C_CARD_BORDER)
+                setStroke(dp(1), C_CARD_BORDER)
             }
         }
     }

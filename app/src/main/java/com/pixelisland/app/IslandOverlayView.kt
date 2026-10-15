@@ -123,8 +123,8 @@ class IslandOverlayView(context: Context) : View(context) {
         isFakeBoldText = true
     }
 
-    private val pinkTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#FF4081")
+    private val pinkTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#00E5FF")
         textSize = 12.5f * scaledDensity
         isFakeBoldText = true
     }
