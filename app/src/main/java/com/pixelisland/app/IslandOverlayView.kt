@@ -53,6 +53,7 @@ class IslandOverlayView(context: Context) : View(context) {
     private val btnFeedRect = RectF()
     private val btnPokeRect = RectF()
     private val btnVisitRect = RectF()
+    private val btnSleepRect = RectF()
 
     // Кнопки заявки в друзья
     private val btnAcceptRect = RectF()
@@ -423,6 +424,7 @@ class IslandOverlayView(context: Context) : View(context) {
             btnFeedRect.setEmpty()
             btnPokeRect.setEmpty()
             btnVisitRect.setEmpty()
+            btnSleepRect.setEmpty()
             btnAcceptRect.setEmpty()
             btnDeclineRect.setEmpty()
             btnCloseRect.setEmpty()
@@ -536,7 +538,7 @@ class IslandOverlayView(context: Context) : View(context) {
                     renderer.drawGuestPet(canvas, guestRect, frameIndex)
                 } else {
                     val time = System.currentTimeMillis()
-                    val isPhysicsActive = state.isHangingOnEdge || abs(state.tiltOffsetPx) >= 8f
+                    val isPhysicsActive = state.isHangingOnEdge || abs(state.tiltOffsetPx) >= 45f
 
                     val minX = capsuleRect.left + dp(40f) * state.islandScale
                     val maxX = (capsuleRect.right - dp(8f) * state.islandScale - petSize).coerceAtLeast(minX)
@@ -674,11 +676,11 @@ class IslandOverlayView(context: Context) : View(context) {
                         isEmittingHearts = false
                     } else {
                         // АКТИВНАЯ АВТОНОМНАЯ ЖИЗНЬ НА ОСТРОВКЕ (20 сек полный цикл):
-                        // 0..5с: Идет справа налево через островок (мордочка влево, лапки шагают, хвост виляет)
-                        // 5..10с: Ложится калачиком у левого края (поза Loaf, дышит, сладко дремлет)
-                        // 10..11.5с: Просыпается, потягивается и разворачивается направо
-                        // 11.5..16.5с: Идет слева направо
-                        // 16.5..20с: Сидит справа, виляет хвостом и пускает парящие сердечки со звездочками!
+                        // 0..5с: Идет справа налево через весь островок (шагает лапками, виляет хвостом)
+                        // 5..9с: Ложится калачиком у левого края (поза Loaf, сладко дремлет)
+                        // 9..11с: Просыпается, потягивается и разворачивается направо
+                        // 11..16с: Бодро идет слева направо
+                        // 16..20с: Сидит справа, довольно виляет хвостом, дышит и моргает
                         val loopMs = 20_000L
                         val t = ((time % loopMs) / 1000f)
 
@@ -692,22 +694,22 @@ class IslandOverlayView(context: Context) : View(context) {
                                 isLyingDown = false
                                 isEmittingHearts = false
                             }
-                            t < 10.0f -> {
+                            t < 9.0f -> {
                                 clampedX = minX
                                 isWalking = false
                                 isFacingLeft = true
                                 isLyingDown = true
-                                isEmittingHearts = (t > 8.0f)
+                                isEmittingHearts = false
                             }
-                            t < 11.5f -> {
+                            t < 11.0f -> {
                                 clampedX = minX
                                 isWalking = false
                                 isFacingLeft = false
                                 isLyingDown = false
                                 isEmittingHearts = false
                             }
-                            t < 16.5f -> {
-                                val p = (t - 11.5f) / 5.0f
+                            t < 16.0f -> {
+                                val p = (t - 11.0f) / 5.0f
                                 val smoothP = (1f - cos(p * Math.PI.toFloat())) / 2f
                                 clampedX = minX + (maxX - minX) * smoothP
                                 isWalking = true
@@ -720,7 +722,7 @@ class IslandOverlayView(context: Context) : View(context) {
                                 isWalking = false
                                 isFacingLeft = false
                                 isLyingDown = false
-                                isEmittingHearts = true
+                                isEmittingHearts = false
                             }
                         }
                     }
@@ -789,11 +791,24 @@ class IslandOverlayView(context: Context) : View(context) {
             canvas.drawRoundRect(capsuleRect, cornerRadius, cornerRadius, capsuleHighlightPaint)
 
             // Кнопка закрытия [ ✕ ]
-            val closeSize = dp(22f)
+            val closeSize = dp(24f)
             btnCloseRect.set(capsuleRect.right - dp(12f) - closeSize, capsuleRect.top + dp(10f), capsuleRect.right - dp(12f), capsuleRect.top + dp(10f) + closeSize)
             canvas.drawCircle(btnCloseRect.centerX(), btnCloseRect.centerY(), closeSize / 2f, btnCloseBgPaint)
             val closeTextY = btnCloseRect.centerY() - (btnCloseTextPaint.descent() + btnCloseTextPaint.ascent()) / 2f
             canvas.drawText("✕", btnCloseRect.centerX(), closeTextY, btnCloseTextPaint)
+
+            // Заголовок карточки: Имя и вид питомца
+            val speciesEmoji = when (state.species) {
+                PetSpecies.CAT -> "🐱"
+                PetSpecies.DOG -> "🐶"
+                PetSpecies.FOX -> "🦊"
+                PetSpecies.DUCK -> "🦆"
+                PetSpecies.PANDA -> "🐼"
+            }
+            val titleStr = "$speciesEmoji ${state.petName}"
+            val titleY = capsuleRect.top + dp(19f)
+            statsLevelPaint.textAlign = Paint.Align.LEFT
+            canvas.drawText(titleStr, capsuleRect.left + dp(14f), titleY, statsLevelPaint)
 
             // Тамагочи-статы в верхнем правом углу (левее крестика)
             val statsX = btnCloseRect.left - dp(8f)
@@ -802,20 +817,18 @@ class IslandOverlayView(context: Context) : View(context) {
             statsTextPaint.textAlign = Paint.Align.RIGHT
             canvas.drawText(statsInfo, statsX, statsY, statsTextPaint)
 
-            val levelAndSteps = "Lv.${state.petLevel} (${state.xp} XP) • 👟 ${state.stepsToday} • 🪙 ${state.coins}"
+            val levelAndSteps = "Lv.${state.petLevel} (${state.xp} XP) • 👟 ${state.stepsToday}"
             statsLevelPaint.textAlign = Paint.Align.RIGHT
-            canvas.drawText(levelAndSteps, statsX, statsY + dp(12.5f), statsLevelPaint)
+            canvas.drawText(levelAndSteps, statsX, statsY + dp(13f), statsLevelPaint)
 
-            // 3D-питомец слева (в наушниках при музыке)
-            val petSize = dp(56f)
-            val petTop = capsuleRect.top + dp(14f)
+            // 3D-питомец слева (только ОДИН собственный зверек, без наслоения!)
+            val petSize = dp(52f)
+            val petTop = capsuleRect.top + dp(32f)
             val myPetRect = RectF(capsuleRect.left + dp(14f), petTop, capsuleRect.left + dp(14f) + petSize, petTop + petSize)
-            val timeExpanded = System.currentTimeMillis()
-            val isExpandedHearts = (state.petMode == PetMode.WAVE_POKE) || (state.petMode == PetMode.IDLE && ((timeExpanded / 2500L) % 2L == 0L))
-            renderer.drawPet(canvas, myPetRect, state.petMode, frameIndex, isEmittingHearts = isExpandedHearts)
+            renderer.drawPet(canvas, myPetRect, state.petMode, frameIndex, isEmittingHearts = false)
 
             var textStartX = myPetRect.right + dp(12f)
-            if (state.hasGuestPet) {
+            if (state.petMode == PetMode.COUPLE_VISIT) {
                 val guestRect = RectF(myPetRect.right + dp(4f), petTop, myPetRect.right + dp(4f) + petSize, petTop + petSize)
                 renderer.drawGuestPet(canvas, guestRect, frameIndex)
                 textStartX = guestRect.right + dp(8f)
@@ -980,38 +993,46 @@ class IslandOverlayView(context: Context) : View(context) {
                     }
                 }
 
-                // ==================== НИЖНИЙ РЯД ДЕЙСТВИЙ ====================
-                // [ 🍔 Кормить ], [ 👋 Привет ], [ 🐾 В гости ]
+                // ==================== НИЖНИЙ РЯД ДЕЙСТВИЙ (PIXEL PALS) ====================
+                // [ 🍎 Корм ], [ 🎾 Мяч ], [ 💤 Сон ], [ ❤️ Гладь ]
                 val btnTop = capsuleRect.bottom - dp(46f)
                 val btnBottom = capsuleRect.bottom - dp(10f)
-                val btnPaddingH = dp(12f)
-                val btnSpacing = dp(8f)
-                val totalAvailW = capsuleW - (btnPaddingH * 2) - (btnSpacing * 2)
-                val eachBtnW = totalAvailW / 3f
+                val btnPaddingH = dp(10f)
+                val btnSpacing = dp(6f)
+                val totalAvailW = capsuleW - (btnPaddingH * 2) - (btnSpacing * 3)
+                val eachBtnW = totalAvailW / 4f
 
                 val b1L = capsuleRect.left + btnPaddingH
                 btnFeedRect.set(b1L, btnTop, b1L + eachBtnW, btnBottom)
 
                 val b2L = btnFeedRect.right + btnSpacing
-                btnPokeRect.set(b2L, btnTop, b2L + eachBtnW, btnBottom)
+                btnVisitRect.set(b2L, btnTop, b2L + eachBtnW, btnBottom)
 
-                val b3L = btnPokeRect.right + btnSpacing
-                btnVisitRect.set(b3L, btnTop, b3L + eachBtnW, btnBottom)
+                val b3L = btnVisitRect.right + btnSpacing
+                btnSleepRect.set(b3L, btnTop, b3L + eachBtnW, btnBottom)
 
-                val btnCornerRadius = dp(11f)
+                val b4L = btnSleepRect.right + btnSpacing
+                btnPokeRect.set(b4L, btnTop, b4L + eachBtnW, btnBottom)
+
+                val btnCornerRadius = dp(10f)
                 canvas.drawRoundRect(btnFeedRect, btnCornerRadius, btnCornerRadius, btnPaint)
                 canvas.drawRoundRect(btnFeedRect, btnCornerRadius, btnCornerRadius, btnBorderPaint)
-
-                canvas.drawRoundRect(btnPokeRect, btnCornerRadius, btnCornerRadius, btnPaint)
-                canvas.drawRoundRect(btnPokeRect, btnCornerRadius, btnCornerRadius, btnBorderPaint)
 
                 canvas.drawRoundRect(btnVisitRect, btnCornerRadius, btnCornerRadius, btnPaint)
                 canvas.drawRoundRect(btnVisitRect, btnCornerRadius, btnCornerRadius, btnBorderPaint)
 
+                canvas.drawRoundRect(btnSleepRect, btnCornerRadius, btnCornerRadius, btnPaint)
+                canvas.drawRoundRect(btnSleepRect, btnCornerRadius, btnCornerRadius, btnBorderPaint)
+
+                canvas.drawRoundRect(btnPokeRect, btnCornerRadius, btnCornerRadius, btnPaint)
+                canvas.drawRoundRect(btnPokeRect, btnCornerRadius, btnCornerRadius, btnBorderPaint)
+
                 val textBaselineOffset = (btnTextPaint.descent() + btnTextPaint.ascent()) / 2f
-                canvas.drawText("🍔 Кормить", btnFeedRect.centerX(), btnFeedRect.centerY() - textBaselineOffset, btnTextPaint)
-                canvas.drawText("👋 Привет", btnPokeRect.centerX(), btnPokeRect.centerY() - textBaselineOffset, btnTextPaint)
-                canvas.drawText("🐾 В гости", btnVisitRect.centerX(), btnVisitRect.centerY() - textBaselineOffset, btnTextPaint)
+                canvas.drawText("🍎 Корм", btnFeedRect.centerX(), btnFeedRect.centerY() - textBaselineOffset, btnTextPaint)
+                canvas.drawText("🎾 Мяч", btnVisitRect.centerX(), btnVisitRect.centerY() - textBaselineOffset, btnTextPaint)
+                val sleepLabel = if (state.petMode == PetMode.SLEEP) "☀️ Разбудить" else "💤 Сон"
+                canvas.drawText(sleepLabel, btnSleepRect.centerX(), btnSleepRect.centerY() - textBaselineOffset, btnTextPaint)
+                canvas.drawText("❤️ Гладь", btnPokeRect.centerX(), btnPokeRect.centerY() - textBaselineOffset, btnTextPaint)
             }
         }
     }
@@ -1021,11 +1042,9 @@ class IslandOverlayView(context: Context) : View(context) {
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                if (!capsuleRect.contains(event.x, event.y)) {
-                    if (state.isExpanded) {
-                        cancelAutoCollapse()
-                        IslandStateBus.setExpanded(false)
-                    }
+                if (state.isExpanded && !capsuleRect.contains(event.x, event.y)) {
+                    cancelAutoCollapse()
+                    IslandStateBus.setExpanded(false)
                     return false
                 }
                 downX = event.x
@@ -1048,18 +1067,19 @@ class IslandOverlayView(context: Context) : View(context) {
                 if (!state.isExpanded) {
                     // СВЕРНУТЫЙ РЕЖИМ:
                     // 1. Свайп -> бросок мячика (апортировка)
-                    // 2. Удержание (>350ms) -> раскрытие панели управления
-                    // 3. Быстрый тап -> радостное взаимодействие с питомцем (машет лапкой, сердечки)
+                    // 2. ДЛИТЕЛЬНОЕ удержание (>500ms) -> намеренное раскрытие панели
+                    // 3. Быстрый обычный тап -> радостный прыжок питомца, сердечко, +10 настроения, +5 XP!
+                    //    НИКАКИХ СЛУЧАЙНЫХ ВСПЛЫВАЮЩИХ ПАНЕЛЕЙ!
                     if (abs(dx) > dp(14f) && dt < 650L) {
                         startFetchGame(throwRight = (dx > 0))
                     } else if (capsuleRect.contains(event.x, event.y)) {
                         vibrateClick()
-                        if (dt >= 350L) {
+                        if (dt >= 500L) {
                             IslandStateBus.setExpanded(true)
                             scheduleAutoCollapse(5000L)
                         } else {
-                            val partnerName = state.partnerUsername.ifBlank { "напарник" }
-                            IslandStateBus.triggerPokeWave(partnerName)
+                            // Одиночный быстрый тап: питомец радостно подпрыгивает и машет!
+                            IslandStateBus.playWithPet()
                         }
                     }
                 } else {
@@ -1102,25 +1122,33 @@ class IslandOverlayView(context: Context) : View(context) {
                             scheduleAutoCollapse(2000L)
                         }
 
-                        // Нижний ряд кнопок действий
+                        // Нижний ряд кнопок действий Pixel Pals
                         btnFeedRect.contains(event.x, event.y) || btnFeedRect.contains(downX, downY) -> {
                             vibrateClick()
                             IslandStateBus.feedPet()
                             FirebaseCoupleManager.sendPartnerAction("FEED")
-                            scheduleAutoCollapse(2500L)
-                        }
-                        btnPokeRect.contains(event.x, event.y) || btnPokeRect.contains(downX, downY) -> {
-                            vibrateClick()
-                            val partnerName = state.partnerUsername.ifBlank { "напарник" }
-                            IslandStateBus.triggerPokeWave(partnerName)
-                            FirebaseCoupleManager.sendPartnerAction("HEART")
-                            scheduleAutoCollapse(2500L)
+                            scheduleAutoCollapse(3000L)
                         }
                         btnVisitRect.contains(event.x, event.y) || btnVisitRect.contains(downX, downY) -> {
                             vibrateClick()
-                            IslandStateBus.triggerPartnerVisit()
-                            FirebaseCoupleManager.sendPartnerAction("VISIT")
-                            scheduleAutoCollapse(2500L)
+                            cancelAutoCollapse()
+                            IslandStateBus.setExpanded(false)
+                            startFetchGame(true)
+                        }
+                        btnSleepRect.contains(event.x, event.y) || btnSleepRect.contains(downX, downY) -> {
+                            vibrateClick()
+                            if (state.petMode == PetMode.SLEEP) {
+                                IslandStateBus.recalculatePetMode()
+                            } else {
+                                IslandStateBus.setPetMode(PetMode.SLEEP)
+                            }
+                            scheduleAutoCollapse(3000L)
+                        }
+                        btnPokeRect.contains(event.x, event.y) || btnPokeRect.contains(downX, downY) -> {
+                            vibrateClick()
+                            IslandStateBus.playWithPet()
+                            FirebaseCoupleManager.sendPartnerAction("HEART")
+                            scheduleAutoCollapse(3000L)
                         }
                         else -> {
                             // Тапнули мимо кнопок по карточке -> моментально закрываем!

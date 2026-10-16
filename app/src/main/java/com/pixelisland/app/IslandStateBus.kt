@@ -8,8 +8,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 enum class PetSpecies {
-    CAT,
-    DOG
+    CAT,   // 🐱 Oliver (Оливер)
+    DOG,   // 🐶 Hugo (Хьюго)
+    FOX,   // 🦊 Chester (Честер)
+    DUCK,  // 🦆 Nugget (Наггет)
+    PANDA  // 🐼 Po (По)
 }
 
 enum class PetMode {
@@ -26,6 +29,7 @@ enum class PetMode {
 
 data class IslandState(
     val species: PetSpecies = PetSpecies.CAT,
+    val petName: String = "Оливер",
     val isExpanded: Boolean = false,
     val petMode: PetMode = PetMode.IDLE,
     val mediaTitle: String? = null,
@@ -83,8 +87,23 @@ object IslandStateBus {
     private var doomscrollRunnable: Runnable? = null
     private var partnerNoteRunnable: Runnable? = null
 
-    fun setPetSpecies(species: PetSpecies) {
-        _state.update { it.copy(species = species) }
+    fun getDefaultName(species: PetSpecies): String {
+        return when (species) {
+            PetSpecies.CAT -> "Оливер"
+            PetSpecies.DOG -> "Хьюго"
+            PetSpecies.FOX -> "Честер"
+            PetSpecies.DUCK -> "Наггет"
+            PetSpecies.PANDA -> "По"
+        }
+    }
+
+    fun setPetSpecies(species: PetSpecies, customName: String? = null) {
+        val name = customName ?: getDefaultName(species)
+        _state.update { it.copy(species = species, petName = name) }
+    }
+
+    fun setPetName(name: String) {
+        _state.update { it.copy(petName = name.ifBlank { getDefaultName(it.species) }) }
     }
 
     fun setPetMode(mode: PetMode) {

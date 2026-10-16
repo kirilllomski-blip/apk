@@ -240,7 +240,7 @@ class VoxelRoomView(context: Context) : View(context) {
                     isWalking = false
                     isFacingLeft = true
                     isLyingDown = true
-                    isEmittingHearts = (t > 11.5f)
+                    isEmittingHearts = false
                 }
                 t < 16.0f -> {
                     petX = minRoomX
@@ -263,7 +263,7 @@ class VoxelRoomView(context: Context) : View(context) {
                     isWalking = false
                     isFacingLeft = false
                     isLyingDown = false
-                    isEmittingHearts = true
+                    isEmittingHearts = false
                 }
             }
         }

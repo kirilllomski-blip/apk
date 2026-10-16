@@ -98,10 +98,15 @@ class MainActivity : Activity() {
 
         val prefs = getSharedPreferences("pixel_island_prefs", Context.MODE_PRIVATE)
 
-        // Загрузка сохраненного базового скина
+        // Загрузка сохраненного питомца и его клички
         val savedSpeciesStr = prefs.getString("pet_species", PetSpecies.CAT.name)
-        val initialSpecies = if (savedSpeciesStr == PetSpecies.DOG.name) PetSpecies.DOG else PetSpecies.CAT
-        IslandStateBus.setPetSpecies(initialSpecies)
+        val initialSpecies = try {
+            PetSpecies.valueOf(savedSpeciesStr ?: PetSpecies.CAT.name)
+        } catch (e: Exception) {
+            PetSpecies.CAT
+        }
+        val savedName = prefs.getString("pet_name", IslandStateBus.getDefaultName(initialSpecies)) ?: "Оливер"
+        IslandStateBus.setPetSpecies(initialSpecies, savedName)
 
         // Загрузка сохраненного лимита Анти-Рилсов
         val savedLimit = prefs.getInt("doomscroll_limit", 15)
@@ -156,7 +161,7 @@ class MainActivity : Activity() {
             Triple("⚡", "ТЕСТЫ", 0),      // Вкладка 0
             Triple("🤝", "ДРУЗЬЯ", 1),     // Вкладка 1
             Triple("🎯", "КАМЕРА", 2),     // Вкладка 2
-            Triple("🐶", "СКИНЫ", 3)       // Вкладка 3
+            Triple("🐾", "ПИТОМЦЫ", 3)     // Вкладка 3: Pixel Pals
         )
 
         dockButtons.clear()
@@ -167,6 +172,7 @@ class MainActivity : Activity() {
                 if (tabIndex == -1) {
                     IslandStateBus.feedPet()
                     FirebaseCoupleManager.sendPartnerAction("FEED")
+                    PixelPetWidgetProvider.updateAllWidgets(this)
                     Toast.makeText(this, "🍔 Питомец с аппетитом поел! (+20 сытости, +15 XP)", Toast.LENGTH_SHORT).show()
                 } else {
                     selectTab(tabIndex)
@@ -802,38 +808,78 @@ class MainActivity : Activity() {
         val state = IslandStateBus.state.value
         val prefs = getSharedPreferences("pixel_island_prefs", Context.MODE_PRIVATE)
 
-        // 1. САМЫЙ ПЕРВЫЙ БЛОК: КРУПНЫЕ КНОПКИ ВЫБОРА БАЗОВОГО ПЕРСОНАЖА (КОТ / СОБАЧКА)
+        // 1. КАРТОЧКА КЛИЧКИ И СТАТУСА ПИТОМЦА (Pixel Pals)
+        val nameCard = createConstructorCard().apply {
+            addView(createSectionTitle("🏷️ КЛИЧКА И СТАТУС ПИТОМЦА"))
+            addView(createDescriptionText("Имя питомца отображается на Dynamic Island и на виджете рабочего стола:"))
+
+            val heartsCount = (state.mood / 20).coerceIn(1, 5)
+            val heartsStr = "❤️".repeat(heartsCount)
+            val statsInfo = TextView(context).apply {
+                text = "⭐ Уровень: ${state.petLevel}  •  XP: ${state.petXp}/100  •  $heartsStr\n🍖 Сытость: ${state.hunger}%  •  ⚡ Бодрость: ${state.energy}%  •  💖 Настроение: ${state.mood}%"
+                setTextColor(C_BRICK_AMBER)
+                textSize = 12f
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding(0, 0, 0, dp(8))
+            }
+            addView(statsInfo)
+
+            val nameInput = createConstructorInput(state.petName).apply {
+                hint = "Кличка питомца (например: ${IslandStateBus.getDefaultName(state.species)})"
+            }
+            addView(nameInput)
+
+            val btnSaveName = createCozyButton("💾 Сохранить кличку питомца", C_BRICK_MINT) {
+                vibrateQuick()
+                val entered = nameInput.text.toString().trim()
+                if (entered.isNotBlank()) {
+                    prefs.edit().putString("pet_name", entered).apply()
+                    IslandStateBus.setPetName(entered)
+                    PixelPetWidgetProvider.updateAllWidgets(this@MainActivity)
+                    Toast.makeText(this@MainActivity, "Кличка сохранена: $entered ✨", Toast.LENGTH_SHORT).show()
+                    rebuildSkinsTab()
+                } else {
+                    Toast.makeText(this@MainActivity, "Введите имя питомца", Toast.LENGTH_SHORT).show()
+                }
+            }
+            addView(btnSaveName)
+        }
+        container.addView(nameCard)
+
+        // 2. ВЫБОР ПЕРСОНАЖА PIXEL PALS (5 ВИДОВ)
         val speciesCard = createConstructorCard().apply {
-            addView(createSectionTitle("🐾 ВЫБОР БАЗОВОГО ПИТОМЦА"))
-            addView(createDescriptionText("Выберите 3D-персонажа для Dynamic Island и вашей комнаты:"))
+            addView(createSectionTitle("🐾 ВЫБОР ПЕРСОНАЖА (PIXEL PALS)"))
+            addView(createDescriptionText("Выберите верного друга для Островка, Виджета на рабочем столе и 3D-комнаты:"))
 
-            val isCat = state.species == PetSpecies.CAT
+            val palSpecies = listOf(
+                Triple(PetSpecies.CAT, "🐱 Кот Оливер", C_BRICK_CORAL),
+                Triple(PetSpecies.DOG, "🐶 Пес Хьюго", C_BRICK_AMBER),
+                Triple(PetSpecies.FOX, "🦊 Лис Честер", C_BRICK_CARAMEL),
+                Triple(PetSpecies.DUCK, "🦆 Утенок Наггет", C_BRICK_AMBER),
+                Triple(PetSpecies.PANDA, "🐼 Панда По", C_BRICK_INDIGO)
+            )
 
-            // Кнопка [ 🐱 Выбрать: Рыжий Кот ]
-            addView(createOptionButton(
-                if (isCat) "🐱 Рыжий Кот (Выбран ✅)" else "🐱 Выбрать: Рыжий Кот",
-                isCat,
-                C_BRICK_CORAL
-            ) {
-                vibrateQuick()
-                prefs.edit().putString("pet_species", PetSpecies.CAT.name).apply()
-                IslandStateBus.setPetSpecies(PetSpecies.CAT)
-                Toast.makeText(context, "🐱 Выбран Рыжий Кот!", Toast.LENGTH_SHORT).show()
-                rebuildSkinsTab()
-            })
-
-            // Кнопка [ 🐶 Выбрать: Пес Сиба-Ину ]
-            addView(createOptionButton(
-                if (!isCat) "🐶 Пес Сиба-Ину (Выбран ✅)" else "🐶 Выбрать: Пес Сиба-Ину",
-                !isCat,
-                C_BRICK_AMBER
-            ) {
-                vibrateQuick()
-                prefs.edit().putString("pet_species", PetSpecies.DOG.name).apply()
-                IslandStateBus.setPetSpecies(PetSpecies.DOG)
-                Toast.makeText(context, "🐶 Выбран Пес Сиба-Ину!", Toast.LENGTH_SHORT).show()
-                rebuildSkinsTab()
-            })
+            palSpecies.forEach { (sp, label, color) ->
+                val isSelected = state.species == sp
+                val title = if (isSelected) "$label (Выбран ✅)" else "Выбрать: $label"
+                addView(createOptionButton(title, isSelected, color) {
+                    vibrateQuick()
+                    prefs.edit().putString("pet_species", sp.name).apply()
+                    val currentName = state.petName
+                    val isDefaultOfAny = PetSpecies.values().any { IslandStateBus.getDefaultName(it) == currentName }
+                    val newName = if (isDefaultOfAny || currentName.isBlank()) {
+                        val def = IslandStateBus.getDefaultName(sp)
+                        prefs.edit().putString("pet_name", def).apply()
+                        def
+                    } else {
+                        currentName
+                    }
+                    IslandStateBus.setPetSpecies(sp, newName)
+                    PixelPetWidgetProvider.updateAllWidgets(this@MainActivity)
+                    Toast.makeText(context, "$label выбран! 🐾", Toast.LENGTH_SHORT).show()
+                    rebuildSkinsTab()
+                })
+            }
         }
         container.addView(speciesCard)
 
@@ -875,6 +921,7 @@ class MainActivity : Activity() {
                     targetFile.delete()
                 }
                 IslandStateBus.notifyCustomPetFileChanged()
+                PixelPetWidgetProvider.updateAllWidgets(context)
                 Toast.makeText(context, "Возвращен стандартный 3D-питомец конструктора", Toast.LENGTH_SHORT).show()
                 updateCustomPetStatus()
             }
@@ -1029,6 +1076,7 @@ class MainActivity : Activity() {
                         }
                     }
                     IslandStateBus.notifyCustomPetFileChanged()
+                    PixelPetWidgetProvider.updateAllWidgets(this)
                     Toast.makeText(this, "Файл питомца успешно загружен!", Toast.LENGTH_SHORT).show()
                     updateCustomPetStatus()
                 } catch (e: Exception) {

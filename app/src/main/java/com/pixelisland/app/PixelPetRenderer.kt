@@ -70,6 +70,22 @@ class PixelPetRenderer(private val context: Context) {
     private val C_DOG_TONGUE       = Color.parseColor("#FB7185") // Розовый высунутый язычок
     private val C_COLLAR_RED       = Color.parseColor("#EF4444") // Красный ошейник
 
+    // Лис (Chester): Яркий рыже-красный с белой манишкой и черными сапожками
+    private val C_FOX_RED          = Color.parseColor("#EA580C")
+    private val C_FOX_DARK         = Color.parseColor("#C2410C")
+    private val C_FOX_PAWS         = Color.parseColor("#18181B")
+
+    // Утенок (Nugget): Солнечно-желтый пушок с оранжевым клювиком
+    private val C_DUCK_YELLOW      = Color.parseColor("#FACC15")
+    private val C_DUCK_DARK        = Color.parseColor("#EAB308")
+    private val C_DUCK_BEAK        = Color.parseColor("#FB923C")
+    private val C_DUCK_FEET        = Color.parseColor("#EA580C")
+
+    // Панда (Po): Классический черно-белый мишка с круглыми ушками
+    private val C_PANDA_WHITE      = Color.parseColor("#FFFDF8")
+    private val C_PANDA_BLACK      = Color.parseColor("#1E293B")
+    private val C_PANDA_DARK       = Color.parseColor("#0F172A")
+
     // Аксессуары и эмоции
     private val C_HEADPHONES_RED   = Color.parseColor("#FF3D00") // ОГРОМНЫЕ красные наушники
     private val C_HEADPHONES_CUP   = Color.parseColor("#18181B") // Темные амбушюры
@@ -218,8 +234,8 @@ class PixelPetRenderer(private val context: Context) {
             canvas.rotate(pendulumAngle, pivotX, dstRect.top)
         }
 
-        // 2. РЕЖИМ ГОСТЕЙ (COUPLE_VISIT): Рисуем ДВУХ питомцев рядом!
-        if (mode == PetMode.COUPLE_VISIT || state.hasGuestPet) {
+        // 2. РЕЖИМ ГОСТЕЙ (COUPLE_VISIT): Рисуем ДВУХ питомцев рядом только в режиме COUPLE_VISIT
+        if (mode == PetMode.COUPLE_VISIT) {
             drawCouplePets(canvas, dstRect, state.species, time)
             canvas.restore()
             return
@@ -309,7 +325,7 @@ class PixelPetRenderer(private val context: Context) {
         val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         val isSleepingOrLoaf = isLyingDown || mode == PetMode.SLEEP
         val showNightcap = state.forceNightcap || ((hour >= 22 || hour < 7) && isSleepingOrLoaf)
-        val showSunglasses = state.forceSunglasses || (hour in 9..19 && mode == PetMode.IDLE && !isLyingDown && !hasBallInMouth)
+        val showSunglasses = state.forceSunglasses // Никогда не навязывать очки днем автоматически
 
         if (showNightcap) {
             drawNightCap(canvas, startX, startY, bSize, isSleepingOrLoaf)
@@ -324,9 +340,9 @@ class PixelPetRenderer(private val context: Context) {
 
         canvas.restore()
 
-        // 4. ПЛАВАЮЩИЕ СЕРДЕЧКИ И ЗВЕЗДОЧКИ (рисуем поверх без зеркального отражения)
+        // 4. ПЛАВАЮЩИЕ СЕРДЕЧКИ: строго НАД головой питомца, мягко улетающие в небо
         if (isEmittingHearts) {
-            drawFloatingHearts(canvas, dstRect.centerX(), dstRect.top + bSize * 2f, bSize, time)
+            drawFloatingHearts(canvas, dstRect.centerX(), dstRect.top - bSize * 0.8f, bSize, time)
         }
 
         if (state.isPartnerBatteryLow) {
@@ -362,7 +378,8 @@ class PixelPetRenderer(private val context: Context) {
     }
 
     /**
-     * Отрисовка стоящего или шагающего зверька из 3D кубиков (Кот или Собачка Сиба-ину).
+     * Отрисовка стоящего или шагающего зверька из 3D кубиков:
+     * 🐱 Кот Оливер, 🐶 Пес Хьюго, 🦊 Лис Честер, 🦆 Утенок Наггет, 🐼 Панда По
      */
     private fun drawVoxelAnimalModel(
         canvas: Canvas,
@@ -377,35 +394,100 @@ class PixelPetRenderer(private val context: Context) {
         hasBallInMouth: Boolean = false
     ) {
         val timeSec = time * 0.001f
-        val isDog = (species == PetSpecies.DOG)
 
-        // Основные цвета
-        val cMain = if (isDog) C_DOG_HONEY else C_CAT_GINGER
-        val cDark = if (isDog) C_DOG_TAN_DARK else C_CAT_GINGER_DARK
-        val cWhite = C_CAT_WHITE
-        val cPink = C_CAT_PINK
+        // Цветовые палитры для каждого персонажа Pixel Pals
+        val cMain: Int
+        val cDark: Int
+        val cWhite: Int
+        val cPaw: Int
+        val cNose: Int
+        val collarColor: Int
+
+        when (species) {
+            PetSpecies.DOG -> {
+                cMain = C_DOG_HONEY
+                cDark = C_DOG_TAN_DARK
+                cWhite = C_DOG_WHITE
+                cPaw = C_DOG_WHITE
+                cNose = C_DOG_NOSE
+                collarColor = C_COLLAR_RED
+            }
+            PetSpecies.FOX -> {
+                cMain = C_FOX_RED
+                cDark = C_FOX_DARK
+                cWhite = C_CAT_WHITE
+                cPaw = C_FOX_PAWS
+                cNose = C_FOX_PAWS
+                collarColor = Color.parseColor("#059669")
+            }
+            PetSpecies.DUCK -> {
+                cMain = C_DUCK_YELLOW
+                cDark = C_DUCK_DARK
+                cWhite = C_DUCK_YELLOW
+                cPaw = C_DUCK_FEET
+                cNose = C_DUCK_BEAK
+                collarColor = Color.parseColor("#3B82F6")
+            }
+            PetSpecies.PANDA -> {
+                cMain = C_PANDA_WHITE
+                cDark = C_PANDA_BLACK
+                cWhite = C_PANDA_WHITE
+                cPaw = C_PANDA_BLACK
+                cNose = C_PANDA_DARK
+                collarColor = Color.parseColor("#EF4444")
+            }
+            PetSpecies.CAT -> {
+                cMain = C_CAT_GINGER
+                cDark = C_CAT_GINGER_DARK
+                cWhite = C_CAT_WHITE
+                cPaw = C_CAT_WHITE
+                cNose = C_CAT_PINK
+                collarColor = C_COLLAR_TEAL
+            }
+        }
 
         // 1. ХВОСТ (Сзади)
-        if (isDog) {
-            // У собаки Сиба-Ину хвостик закручен бубликом на спинке и быстро виляет
-            val tailSpeed = if (isSprinting) 22f else if (isWalking) 16f else 12f
-            val tailAmp = if (isSprinting) 0.65f else if (isWalking) 0.55f else 0.35f
-            val tailWag = sin(timeSec * tailSpeed) * (bSize * tailAmp)
-            drawBrick(canvas, x + bSize * 8.5f + tailWag, y + bSize * 5.2f, bSize * 1.1f, cDark)
-            drawBrick(canvas, x + bSize * 9.2f + tailWag, y + bSize * 4.2f, bSize * 1.1f, cMain)
-            drawBrick(canvas, x + bSize * 8.6f + tailWag, y + bSize * 3.4f, bSize * 1.0f, cWhite)
-        } else {
-            // У Кота длинный пушистый хвост, плавно покачивается
-            val catTailSpeed = if (isSprinting) 18f else if (isWalking) 10f else 4f
-            val tailSwish = sin(timeSec * catTailSpeed) * (bSize * 0.5f)
-            drawBrick(canvas, x + bSize * 8.5f, y + bSize * 6.5f, bSize * 1.1f, cDark)
-            drawBrick(canvas, x + bSize * 9.4f, y + bSize * 5.5f, bSize * 1.1f, cMain)
-            drawBrick(canvas, x + bSize * 9.8f + tailSwish, y + bSize * 4.4f, bSize * 1.1f, cDark)
-            drawBrick(canvas, x + bSize * 9.2f + tailSwish, y + bSize * 3.4f, bSize * 1.0f, cWhite)
+        when (species) {
+            PetSpecies.DOG -> {
+                // Закрученный бубликом хвостик, виляет
+                val tailSpeed = if (isSprinting) 22f else if (isWalking) 16f else 12f
+                val tailAmp = if (isSprinting) 0.65f else if (isWalking) 0.55f else 0.35f
+                val tailWag = sin(timeSec * tailSpeed) * (bSize * tailAmp)
+                drawBrick(canvas, x + bSize * 8.5f + tailWag, y + bSize * 5.2f, bSize * 1.1f, cDark)
+                drawBrick(canvas, x + bSize * 9.2f + tailWag, y + bSize * 4.2f, bSize * 1.1f, cMain)
+                drawBrick(canvas, x + bSize * 8.6f + tailWag, y + bSize * 3.4f, bSize * 1.0f, cWhite)
+            }
+            PetSpecies.FOX -> {
+                // Большой пушистый лисий хвост с белым кончиком
+                val foxTailSpeed = if (isSprinting) 18f else if (isWalking) 11f else 5f
+                val tailSwish = sin(timeSec * foxTailSpeed) * (bSize * 0.6f)
+                drawBrick(canvas, x + bSize * 8.4f, y + bSize * 6.2f, bSize * 1.3f, cDark)
+                drawBrick(canvas, x + bSize * 9.4f, y + bSize * 5.0f, bSize * 1.4f, cMain)
+                drawBrick(canvas, x + bSize * 10.1f + tailSwish, y + bSize * 3.8f, bSize * 1.3f, cDark)
+                drawBrick(canvas, x + bSize * 9.6f + tailSwish, y + bSize * 2.6f, bSize * 1.2f, C_CAT_WHITE) // Белый кончик
+            }
+            PetSpecies.DUCK -> {
+                // Короткий задорный желтый хвостик
+                val duckWag = sin(timeSec * 14f) * (bSize * 0.4f)
+                drawBrick(canvas, x + bSize * 8.4f + duckWag, y + bSize * 4.8f, bSize * 1.1f, cDark)
+                drawBrick(canvas, x + bSize * 9.2f + duckWag, y + bSize * 4.2f, bSize * 0.9f, cMain)
+            }
+            PetSpecies.PANDA -> {
+                // Круглый пушистый черный хвостик
+                drawBrick(canvas, x + bSize * 8.4f, y + bSize * 5.4f, bSize * 1.2f, C_PANDA_BLACK)
+            }
+            PetSpecies.CAT -> {
+                // Длинный кошачий хвост
+                val catTailSpeed = if (isSprinting) 18f else if (isWalking) 10f else 4f
+                val tailSwish = sin(timeSec * catTailSpeed) * (bSize * 0.5f)
+                drawBrick(canvas, x + bSize * 8.5f, y + bSize * 6.5f, bSize * 1.1f, cDark)
+                drawBrick(canvas, x + bSize * 9.4f, y + bSize * 5.5f, bSize * 1.1f, cMain)
+                drawBrick(canvas, x + bSize * 9.8f + tailSwish, y + bSize * 4.4f, bSize * 1.1f, cDark)
+                drawBrick(canvas, x + bSize * 9.2f + tailSwish, y + bSize * 3.4f, bSize * 1.0f, cWhite)
+            }
         }
 
         // 2. ТЕЛО (Спина, бока, пузико)
-        // Задние лапки: при ходьбе и спринте попеременно переступают
         val stepSpeed = if (isSprinting) 24f else 14f
         val stepAmp = if (isSprinting) 1.0f else 0.6f
         val stepBL = if (isWalking) sin(timeSec * stepSpeed) * (bSize * stepAmp) else 0f
@@ -413,122 +495,156 @@ class PixelPetRenderer(private val context: Context) {
         val stepBR = -stepBL
         val liftBR = if (isWalking) abs(sin(timeSec * stepSpeed + Math.PI.toFloat())) * (bSize * 0.35f) else 0f
 
-        drawBrick(canvas, x + bSize * 2.2f - stepBL * 0.3f, y + bSize * 6.6f - liftBL, bSize * 1.2f, cWhite) // Левая задняя
-        drawBrick(canvas, x + bSize * 7.0f - stepBR * 0.3f, y + bSize * 6.6f - liftBR, bSize * 1.2f, cWhite) // Правая задняя
-        drawBrick(canvas, x + bSize * 3.2f, y + bSize * 5.8f, bSize * 1.3f, cMain)  // Животик
-        drawBrick(canvas, x + bSize * 4.5f, y + bSize * 5.8f, bSize * 1.3f, cWhite) // Белое пузико
-        drawBrick(canvas, x + bSize * 5.8f, y + bSize * 5.8f, bSize * 1.3f, cMain)
+        // Задние лапки
+        drawBrick(canvas, x + bSize * 2.2f - stepBL * 0.3f, y + bSize * 6.6f - liftBL, bSize * 1.2f, cPaw)
+        drawBrick(canvas, x + bSize * 7.0f - stepBR * 0.3f, y + bSize * 6.6f - liftBR, bSize * 1.2f, cPaw)
 
-        // Грудка и спинка
-        drawBrick(canvas, x + bSize * 3.2f, y + bSize * 4.6f, bSize * 1.3f, cMain)
-        drawBrick(canvas, x + bSize * 4.5f, y + bSize * 4.6f, bSize * 1.3f, cWhite) // Манишка
-        drawBrick(canvas, x + bSize * 5.8f, y + bSize * 4.6f, bSize * 1.3f, cMain)
+        // Тело и пузико
+        val bodyMidColor = if (species == PetSpecies.PANDA) C_PANDA_BLACK else cMain
+        drawBrick(canvas, x + bSize * 3.2f, y + bSize * 5.8f, bSize * 1.3f, bodyMidColor)
+        drawBrick(canvas, x + bSize * 4.5f, y + bSize * 5.8f, bSize * 1.3f, if (species == PetSpecies.DUCK) cMain else cWhite)
+        drawBrick(canvas, x + bSize * 5.8f, y + bSize * 5.8f, bSize * 1.3f, bodyMidColor)
 
-        // Ошейник с колокольчиком / медальоном
-        val collarColor = if (isDog) C_COLLAR_RED else C_COLLAR_TEAL
-        drawBrick(canvas, x + bSize * 3.4f, y + bSize * 3.8f, bSize * 1.1f, collarColor)
-        drawBrick(canvas, x + bSize * 4.5f, y + bSize * 3.8f, bSize * 1.1f, C_BELL_GOLD) // Медальон
-        drawBrick(canvas, x + bSize * 5.6f, y + bSize * 3.8f, bSize * 1.1f, collarColor)
+        // Грудка
+        drawBrick(canvas, x + bSize * 3.2f, y + bSize * 4.6f, bSize * 1.3f, bodyMidColor)
+        drawBrick(canvas, x + bSize * 4.5f, y + bSize * 4.6f, bSize * 1.3f, cWhite)
+        drawBrick(canvas, x + bSize * 5.8f, y + bSize * 4.6f, bSize * 1.3f, bodyMidColor)
 
-        // 3. ГОЛОВА (Мордочка, ушки, щечки)
-        // Верх головы
+        // Крылышки для Утенка по бокам
+        if (species == PetSpecies.DUCK) {
+            val wingFlap = if (isWalking || isSprinting) sin(timeSec * 20f) * (bSize * 0.5f) else 0f
+            drawBrick(canvas, x + bSize * 2.0f, y + bSize * 4.4f - wingFlap, bSize * 1.2f, C_DUCK_DARK)
+            drawBrick(canvas, x + bSize * 6.9f, y + bSize * 4.4f - wingFlap, bSize * 1.2f, C_DUCK_DARK)
+        }
+
+        // Ошейник с кулончиком
+        if (species != PetSpecies.DUCK) {
+            drawBrick(canvas, x + bSize * 3.4f, y + bSize * 3.8f, bSize * 1.1f, collarColor)
+            drawBrick(canvas, x + bSize * 4.5f, y + bSize * 3.8f, bSize * 1.1f, C_BELL_GOLD)
+            drawBrick(canvas, x + bSize * 5.6f, y + bSize * 3.8f, bSize * 1.1f, collarColor)
+        }
+
+        // 3. ГОЛОВА
         drawBrick(canvas, x + bSize * 3.2f, y + bSize * 1.2f, bSize * 1.3f, cMain)
-        drawBrick(canvas, x + bSize * 4.5f, y + bSize * 1.2f, bSize * 1.3f, if (isDog) cWhite else cDark)
+        drawBrick(canvas, x + bSize * 4.5f, y + bSize * 1.2f, bSize * 1.3f, if (species == PetSpecies.CAT) cDark else cWhite)
         drawBrick(canvas, x + bSize * 5.8f, y + bSize * 1.2f, bSize * 1.3f, cMain)
 
-        // Ушки
-        if (isDog) {
-            // У Сиба-ину аккуратные треугольные ушки
-            drawBrick(canvas, x + bSize * 2.2f, y + bSize * 0.1f, bSize * 1.2f, cDark)
-            drawBrick(canvas, x + bSize * 3.2f, y + bSize * 0.2f, bSize * 1.0f, cWhite)
-            drawBrick(canvas, x + bSize * 6.8f, y + bSize * 0.1f, bSize * 1.2f, cDark)
-            drawBrick(canvas, x + bSize * 5.9f, y + bSize * 0.2f, bSize * 1.0f, cWhite)
-        } else {
-            // У Кота остренькие ушки с розовой серединкой
-            drawBrick(canvas, x + bSize * 2.2f, y + bSize * 0.0f, bSize * 1.1f, cDark)
-            drawBrick(canvas, x + bSize * 3.1f, y + bSize * 0.3f, bSize * 0.9f, cPink)
-            drawBrick(canvas, x + bSize * 6.9f, y + bSize * 0.0f, bSize * 1.1f, cDark)
-            drawBrick(canvas, x + bSize * 6.2f, y + bSize * 0.3f, bSize * 0.9f, cPink)
+        // Ушки / Хохолок
+        when (species) {
+            PetSpecies.DUCK -> {
+                // Милый желтый хохолок на макушке
+                drawBrick(canvas, x + bSize * 4.4f, y - bSize * 0.1f, bSize * 0.9f, C_DUCK_DARK)
+            }
+            PetSpecies.PANDA -> {
+                // Круглые черные ушки панды
+                drawBrick(canvas, x + bSize * 2.0f, y - bSize * 0.1f, bSize * 1.3f, C_PANDA_BLACK)
+                drawBrick(canvas, x + bSize * 6.8f, y - bSize * 0.1f, bSize * 1.3f, C_PANDA_BLACK)
+            }
+            PetSpecies.FOX -> {
+                // Большие лисьи ушки с белой опушкой
+                drawBrick(canvas, x + bSize * 2.1f, y - bSize * 0.2f, bSize * 1.2f, C_FOX_DARK)
+                drawBrick(canvas, x + bSize * 3.1f, y + bSize * 0.1f, bSize * 0.9f, C_CAT_WHITE)
+                drawBrick(canvas, x + bSize * 6.9f, y - bSize * 0.2f, bSize * 1.2f, C_FOX_DARK)
+                drawBrick(canvas, x + bSize * 6.1f, y + bSize * 0.1f, bSize * 0.9f, C_CAT_WHITE)
+            }
+            PetSpecies.DOG -> {
+                // Аккуратные ушки Сиба-ину
+                drawBrick(canvas, x + bSize * 2.2f, y + bSize * 0.1f, bSize * 1.2f, cDark)
+                drawBrick(canvas, x + bSize * 3.2f, y + bSize * 0.2f, bSize * 1.0f, cWhite)
+                drawBrick(canvas, x + bSize * 6.8f, y + bSize * 0.1f, bSize * 1.2f, cDark)
+                drawBrick(canvas, x + bSize * 5.9f, y + bSize * 0.2f, bSize * 1.0f, cWhite)
+            }
+            PetSpecies.CAT -> {
+                // Острые кошачьи ушки с розовым центром
+                drawBrick(canvas, x + bSize * 2.2f, y + bSize * 0.0f, bSize * 1.1f, cDark)
+                drawBrick(canvas, x + bSize * 3.1f, y + bSize * 0.3f, bSize * 0.9f, C_CAT_PINK)
+                drawBrick(canvas, x + bSize * 6.9f, y + bSize * 0.0f, bSize * 1.1f, cDark)
+                drawBrick(canvas, x + bSize * 6.2f, y + bSize * 0.3f, bSize * 0.9f, C_CAT_PINK)
+            }
         }
 
-        // Щечки и глазки
-        drawBrick(canvas, x + bSize * 2.2f, y + bSize * 2.3f, bSize * 1.3f, if (isDog) cWhite else cMain)
-        drawBrick(canvas, x + bSize * 6.8f, y + bSize * 2.3f, bSize * 1.3f, if (isDog) cWhite else cMain)
+        // Щечки
+        drawBrick(canvas, x + bSize * 2.2f, y + bSize * 2.3f, bSize * 1.3f, if (species == PetSpecies.CAT) cMain else cWhite)
+        drawBrick(canvas, x + bSize * 6.8f, y + bSize * 2.3f, bSize * 1.3f, if (species == PetSpecies.CAT) cMain else cWhite)
 
-        // Глазки: в WAVE_POKE жмурится от радости (^ ^), во сне спящие (- -), иначе круглые бусинки
+        // Черные круги вокруг глаз у панды
+        if (species == PetSpecies.PANDA) {
+            drawBrick(canvas, x + bSize * 3.0f, y + bSize * 1.9f, bSize * 1.6f, C_PANDA_BLACK)
+            drawBrick(canvas, x + bSize * 5.6f, y + bSize * 1.9f, bSize * 1.6f, C_PANDA_BLACK)
+        }
+
+        // Глазки: в WAVE_POKE жмурится от радости (^ ^), во сне спящие (- -), иначе бусинки
         when (mode) {
             PetMode.WAVE_POKE -> {
-                // Глазки-дуги от счастья ^ ^
-                drawBrick(canvas, x + bSize * 3.5f, y + bSize * 2.1f, bSize * 1.0f, C_CAT_EYE)
-                drawBrick(canvas, x + bSize * 5.8f, y + bSize * 2.1f, bSize * 1.0f, C_CAT_EYE)
-                // Розовый румянец
-                drawBrick(canvas, x + bSize * 2.4f, y + bSize * 2.9f, bSize * 0.9f, cPink)
-                drawBrick(canvas, x + bSize * 6.9f, y + bSize * 2.9f, bSize * 0.9f, cPink)
+                val eyeColor = if (species == PetSpecies.PANDA) Color.WHITE else C_CAT_EYE
+                drawBrick(canvas, x + bSize * 3.5f, y + bSize * 2.1f, bSize * 1.0f, eyeColor)
+                drawBrick(canvas, x + bSize * 5.8f, y + bSize * 2.1f, bSize * 1.0f, eyeColor)
+                // Розовый румянец на щечках
+                drawBrick(canvas, x + bSize * 2.4f, y + bSize * 2.9f, bSize * 0.85f, C_CAT_PINK)
+                drawBrick(canvas, x + bSize * 6.9f, y + bSize * 2.9f, bSize * 0.85f, C_CAT_PINK)
             }
             PetMode.SLEEP -> {
-                // Спящие глазки - -
-                drawBrick(canvas, x + bSize * 3.4f, y + bSize * 2.5f, bSize * 1.1f, C_CAT_EYE)
-                drawBrick(canvas, x + bSize * 5.7f, y + bSize * 2.5f, bSize * 1.1f, C_CAT_EYE)
+                val eyeColor = if (species == PetSpecies.PANDA) Color.WHITE else C_CAT_EYE
+                drawBrick(canvas, x + bSize * 3.4f, y + bSize * 2.5f, bSize * 1.1f, eyeColor)
+                drawBrick(canvas, x + bSize * 5.7f, y + bSize * 2.5f, bSize * 1.1f, eyeColor)
             }
             else -> {
-                // Большие круглые глазки-бусинки с белым бликом
-                drawBrick(canvas, x + bSize * 3.4f, y + bSize * 2.2f, bSize * 1.1f, C_CAT_EYE)
-                drawBrick(canvas, x + bSize * 5.7f, y + bSize * 2.2f, bSize * 1.1f, C_CAT_EYE)
+                drawBrick(canvas, x + bSize * 3.4f, y + bSize * 2.2f, bSize * 1.1f, if (species == PetSpecies.PANDA) Color.WHITE else C_CAT_EYE)
+                drawBrick(canvas, x + bSize * 5.7f, y + bSize * 2.2f, bSize * 1.1f, if (species == PetSpecies.PANDA) Color.WHITE else C_CAT_EYE)
                 // Белый блик
-                drawBrick(canvas, x + bSize * 3.5f, y + bSize * 2.2f, bSize * 0.45f, Color.WHITE)
-                drawBrick(canvas, x + bSize * 5.8f, y + bSize * 2.2f, bSize * 0.45f, Color.WHITE)
+                val shineColor = if (species == PetSpecies.PANDA) Color.parseColor("#38BDF8") else Color.WHITE
+                drawBrick(canvas, x + bSize * 3.5f, y + bSize * 2.2f, bSize * 0.45f, shineColor)
+                drawBrick(canvas, x + bSize * 5.8f, y + bSize * 2.2f, bSize * 0.45f, shineColor)
             }
         }
 
-        // Мордочка и носик
-        drawBrick(canvas, x + bSize * 4.1f, y + bSize * 2.8f, bSize * 1.0f, cWhite)
-        drawBrick(canvas, x + bSize * 5.1f, y + bSize * 2.8f, bSize * 1.0f, cWhite)
+        // Мордочка и клюв / носик
+        if (species == PetSpecies.DUCK) {
+            // Оранжевый плоский клювик утенка
+            drawBrick(canvas, x + bSize * 4.0f, y + bSize * 2.7f, bSize * 2.2f, C_DUCK_BEAK)
+            drawBrick(canvas, x + bSize * 4.5f, y + bSize * 2.7f, bSize * 1.2f, Color.parseColor("#FED7AA"))
+        } else {
+            drawBrick(canvas, x + bSize * 4.1f, y + bSize * 2.8f, bSize * 1.0f, cWhite)
+            drawBrick(canvas, x + bSize * 5.1f, y + bSize * 2.8f, bSize * 1.0f, cWhite)
+            drawBrick(canvas, x + bSize * 4.6f, y + bSize * 2.7f, bSize * 0.95f, cNose)
+        }
 
-        // Носик
-        val noseColor = if (isDog) C_DOG_NOSE else cPink
-        drawBrick(canvas, x + bSize * 4.6f, y + bSize * 2.7f, bSize * 0.95f, noseColor)
-
-        // Ротик / язычок / мячик в зубах
+        // Язычок / мячик
         if (hasBallInMouth) {
-            val ballColor = if (isDog) Color.parseColor("#EAB308") else Color.parseColor("#EF4444")
-            val ballHighlight = if (isDog) Color.WHITE else Color.parseColor("#FECDD3")
+            val ballColor = if (species == PetSpecies.DOG) Color.parseColor("#EAB308") else Color.parseColor("#EF4444")
+            val ballHighlight = if (species == PetSpecies.DOG) Color.WHITE else Color.parseColor("#FECDD3")
             drawBrick(canvas, x + bSize * 4.2f, y + bSize * 3.3f, bSize * 1.5f, ballColor)
             drawBrick(canvas, x + bSize * 4.6f, y + bSize * 3.5f, bSize * 0.7f, ballHighlight)
-        } else if (isDog && mode != PetMode.SLEEP) {
-            // У собаки милый высунутый язычок
+        } else if (species == PetSpecies.DOG && mode != PetMode.SLEEP) {
             drawBrick(canvas, x + bSize * 4.6f, y + bSize * 3.5f, bSize * 0.9f, C_DOG_TONGUE)
-        } else if (!isDog && mode == PetMode.WAVE_POKE) {
-            // У кота улыбающийся ротик
-            drawBrick(canvas, x + bSize * 4.7f, y + bSize * 3.4f, bSize * 0.7f, cPink)
+        } else if (species != PetSpecies.DUCK && mode == PetMode.WAVE_POKE) {
+            drawBrick(canvas, x + bSize * 4.7f, y + bSize * 3.4f, bSize * 0.7f, C_CAT_PINK)
         }
 
         // 4. ПЕРЕДНИЕ ЛАПКИ
         if (mode == PetMode.WAVE_POKE) {
-            // Левая лапка стоит на полу
-            drawBrick(canvas, x + bSize * 3.2f, y + bSize * 6.5f, bSize * 1.2f, cWhite)
-            // ПРАВАЯ ЛАПКА ВЫСОКО ПОДНЯТА И МАШЕТ!
+            drawBrick(canvas, x + bSize * 3.2f, y + bSize * 6.5f, bSize * 1.2f, cPaw)
+            // Поднятая лапка машет
             val waveOffset = sin(timeSec * 14f) * (bSize * 0.8f)
             drawBrick(canvas, x + bSize * 6.8f + waveOffset, y + bSize * 3.6f, bSize * 1.2f, cMain)
-            drawBrick(canvas, x + bSize * 7.4f + waveOffset, y + bSize * 2.7f, bSize * 1.1f, cWhite) // Белая ладошка
+            drawBrick(canvas, x + bSize * 7.4f + waveOffset, y + bSize * 2.7f, bSize * 1.1f, cPaw)
         } else if (isWalking) {
-            // При ходьбе/спринте: передние лапки ритмично вышагивают вперед и назад
             val stepFL = sin(timeSec * stepSpeed) * (bSize * (stepAmp * 1.3f))
             val liftFL = abs(stepFL) * 0.45f
             val stepFR = -stepFL
             val liftFR = abs(stepFR) * 0.45f
 
-            drawBrick(canvas, x + bSize * 3.2f + stepFL * 0.5f, y + bSize * 6.6f - liftFL, bSize * 1.2f, cWhite)
-            drawBrick(canvas, x + bSize * 5.8f + stepFR * 0.5f, y + bSize * 6.6f - liftFR, bSize * 1.2f, cWhite)
+            drawBrick(canvas, x + bSize * 3.2f + stepFL * 0.5f, y + bSize * 6.6f - liftFL, bSize * 1.2f, cPaw)
+            drawBrick(canvas, x + bSize * 5.8f + stepFR * 0.5f, y + bSize * 6.6f - liftFR, bSize * 1.2f, cPaw)
         } else {
-            // Обе лапки аккуратно сидят впереди
-            drawBrick(canvas, x + bSize * 3.2f, y + bSize * 6.6f, bSize * 1.2f, cWhite)
-            drawBrick(canvas, x + bSize * 5.8f, y + bSize * 6.6f, bSize * 1.2f, cWhite)
+            drawBrick(canvas, x + bSize * 3.2f, y + bSize * 6.6f, bSize * 1.2f, cPaw)
+            drawBrick(canvas, x + bSize * 5.8f, y + bSize * 6.6f, bSize * 1.2f, cPaw)
         }
     }
 
     /**
      * Отрисовка уютно лежащего питомца ("буханочка" / Loaf pose):
-     * Тело прижато к полу, лапки поджаты, глаза спокойно прикрыты, мягкое дыхание.
+     * Все 5 персонажей Pixel Pals уютно дремлют, лапки поджаты, дыхание мерное.
      */
     private fun drawLyingDownAnimalModel(
         canvas: Canvas,
@@ -540,84 +656,166 @@ class PixelPetRenderer(private val context: Context) {
         time: Long
     ) {
         val timeSec = time * 0.001f
-        val isDog = (species == PetSpecies.DOG)
 
-        val cMain = if (isDog) C_DOG_HONEY else C_CAT_GINGER
-        val cDark = if (isDog) C_DOG_TAN_DARK else C_CAT_GINGER_DARK
-        val cWhite = C_CAT_WHITE
-        val cPink = C_CAT_PINK
-        val collarColor = if (isDog) C_COLLAR_RED else C_COLLAR_TEAL
+        val cMain: Int
+        val cDark: Int
+        val cWhite: Int
+        val cPaw: Int
+        val cNose: Int
+        val collarColor: Int
+
+        when (species) {
+            PetSpecies.DOG -> {
+                cMain = C_DOG_HONEY
+                cDark = C_DOG_TAN_DARK
+                cWhite = C_DOG_WHITE
+                cPaw = C_DOG_WHITE
+                cNose = C_DOG_NOSE
+                collarColor = C_COLLAR_RED
+            }
+            PetSpecies.FOX -> {
+                cMain = C_FOX_RED
+                cDark = C_FOX_DARK
+                cWhite = C_CAT_WHITE
+                cPaw = C_FOX_PAWS
+                cNose = C_FOX_PAWS
+                collarColor = Color.parseColor("#059669")
+            }
+            PetSpecies.DUCK -> {
+                cMain = C_DUCK_YELLOW
+                cDark = C_DUCK_DARK
+                cWhite = C_DUCK_YELLOW
+                cPaw = C_DUCK_FEET
+                cNose = C_DUCK_BEAK
+                collarColor = Color.parseColor("#3B82F6")
+            }
+            PetSpecies.PANDA -> {
+                cMain = C_PANDA_WHITE
+                cDark = C_PANDA_BLACK
+                cWhite = C_PANDA_WHITE
+                cPaw = C_PANDA_BLACK
+                cNose = C_PANDA_DARK
+                collarColor = Color.parseColor("#EF4444")
+            }
+            PetSpecies.CAT -> {
+                cMain = C_CAT_GINGER
+                cDark = C_CAT_GINGER_DARK
+                cWhite = C_CAT_WHITE
+                cPaw = C_CAT_WHITE
+                cNose = C_CAT_PINK
+                collarColor = C_COLLAR_TEAL
+            }
+        }
 
         // Мягкое мерное дыхание
         val breathe = sin(timeSec * 2.5f) * (bSize * 0.25f)
         val lieY = y + bSize * 1.2f + breathe
 
         // 1. Хвостик
-        if (isDog) {
-            drawBrick(canvas, x + bSize * 0.8f, lieY + bSize * 3.8f, bSize * 1.1f, cDark)
-            drawBrick(canvas, x + bSize * 0.4f, lieY + bSize * 2.9f, bSize * 1.0f, cWhite)
-        } else {
-            // У кота хвостик свернут вдоль тела
-            drawBrick(canvas, x + bSize * 0.6f, lieY + bSize * 4.6f, bSize * 1.1f, cDark)
-            drawBrick(canvas, x + bSize * 1.4f, lieY + bSize * 5.6f, bSize * 1.1f, cMain)
-            drawBrick(canvas, x + bSize * 2.6f, lieY + bSize * 6.2f, bSize * 1.0f, cWhite)
+        when (species) {
+            PetSpecies.DOG -> {
+                drawBrick(canvas, x + bSize * 0.8f, lieY + bSize * 3.8f, bSize * 1.1f, cDark)
+                drawBrick(canvas, x + bSize * 0.4f, lieY + bSize * 2.9f, bSize * 1.0f, cWhite)
+            }
+            PetSpecies.FOX -> {
+                // Пушистый лисий хвост обернут вокруг тела, белый кончик
+                drawBrick(canvas, x + bSize * 0.6f, lieY + bSize * 4.6f, bSize * 1.3f, cDark)
+                drawBrick(canvas, x + bSize * 1.4f, lieY + bSize * 5.6f, bSize * 1.3f, cMain)
+                drawBrick(canvas, x + bSize * 2.6f, lieY + bSize * 6.2f, bSize * 1.2f, C_CAT_WHITE)
+            }
+            PetSpecies.DUCK -> {
+                drawBrick(canvas, x + bSize * 0.8f, lieY + bSize * 4.6f, bSize * 1.0f, cDark)
+            }
+            PetSpecies.PANDA -> {
+                drawBrick(canvas, x + bSize * 0.7f, lieY + bSize * 4.6f, bSize * 1.2f, C_PANDA_BLACK)
+            }
+            PetSpecies.CAT -> {
+                drawBrick(canvas, x + bSize * 0.6f, lieY + bSize * 4.6f, bSize * 1.1f, cDark)
+                drawBrick(canvas, x + bSize * 1.4f, lieY + bSize * 5.6f, bSize * 1.1f, cMain)
+                drawBrick(canvas, x + bSize * 2.6f, lieY + bSize * 6.2f, bSize * 1.0f, cWhite)
+            }
         }
 
         // 2. Тело калачиком (Loaf)
-        // Нижний ряд спинки и бока
-        drawBrick(canvas, x + bSize * 1.8f, lieY + bSize * 4.8f, bSize * 1.3f, cDark)
+        val bodyColor = if (species == PetSpecies.PANDA) C_PANDA_BLACK else cDark
+        drawBrick(canvas, x + bSize * 1.8f, lieY + bSize * 4.8f, bSize * 1.3f, bodyColor)
         drawBrick(canvas, x + bSize * 3.1f, lieY + bSize * 4.8f, bSize * 1.3f, cMain)
-        drawBrick(canvas, x + bSize * 4.4f, lieY + bSize * 4.8f, bSize * 1.3f, cWhite) // Белый животик
+        drawBrick(canvas, x + bSize * 4.4f, lieY + bSize * 4.8f, bSize * 1.3f, cWhite)
         drawBrick(canvas, x + bSize * 5.7f, lieY + bSize * 4.8f, bSize * 1.3f, cMain)
-        drawBrick(canvas, x + bSize * 7.0f, lieY + bSize * 4.8f, bSize * 1.3f, cDark)
+        drawBrick(canvas, x + bSize * 7.0f, lieY + bSize * 4.8f, bSize * 1.3f, bodyColor)
 
         // Верхний хребет
         drawBrick(canvas, x + bSize * 2.4f, lieY + bSize * 3.6f, bSize * 1.3f, cMain)
         drawBrick(canvas, x + bSize * 3.7f, lieY + bSize * 3.6f, bSize * 1.3f, cWhite)
         drawBrick(canvas, x + bSize * 5.0f, lieY + bSize * 3.6f, bSize * 1.3f, cMain)
 
-        // 3. Поджатые лапки на полу
-        drawBrick(canvas, x + bSize * 3.8f, lieY + bSize * 6.0f, bSize * 1.2f, cWhite)
-        drawBrick(canvas, x + bSize * 5.4f, lieY + bSize * 6.0f, bSize * 1.2f, cWhite)
+        // 3. Поджатые лапки
+        drawBrick(canvas, x + bSize * 3.8f, lieY + bSize * 6.0f, bSize * 1.2f, cPaw)
+        drawBrick(canvas, x + bSize * 5.4f, lieY + bSize * 6.0f, bSize * 1.2f, cPaw)
 
         // 4. Ошейник с кулоном
-        drawBrick(canvas, x + bSize * 6.2f, lieY + bSize * 3.5f, bSize * 1.1f, collarColor)
-        drawBrick(canvas, x + bSize * 7.1f, lieY + bSize * 3.6f, bSize * 0.95f, C_BELL_GOLD)
+        if (species != PetSpecies.DUCK) {
+            drawBrick(canvas, x + bSize * 6.2f, lieY + bSize * 3.5f, bSize * 1.1f, collarColor)
+            drawBrick(canvas, x + bSize * 7.1f, lieY + bSize * 3.6f, bSize * 0.95f, C_BELL_GOLD)
+        }
 
-        // 5. Голова, уютно лежащая на лапках
-        // Лоб
+        // 5. Голова, лежащая на лапках
         drawBrick(canvas, x + bSize * 5.8f, lieY + bSize * 1.2f, bSize * 1.3f, cMain)
-        drawBrick(canvas, x + bSize * 7.1f, lieY + bSize * 1.2f, bSize * 1.3f, if (isDog) cWhite else cDark)
+        drawBrick(canvas, x + bSize * 7.1f, lieY + bSize * 1.2f, bSize * 1.3f, if (species == PetSpecies.CAT) cDark else cWhite)
         drawBrick(canvas, x + bSize * 8.4f, lieY + bSize * 1.2f, bSize * 1.3f, cMain)
 
         // Ушки
-        if (isDog) {
-            drawBrick(canvas, x + bSize * 5.2f, lieY + bSize * 0.2f, bSize * 1.1f, cDark)
-            drawBrick(canvas, x + bSize * 6.2f, lieY + bSize * 0.3f, bSize * 0.9f, cWhite)
-            drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 0.2f, bSize * 1.1f, cDark)
-        } else {
-            drawBrick(canvas, x + bSize * 5.2f, lieY + bSize * 0.1f, bSize * 1.1f, cDark)
-            drawBrick(canvas, x + bSize * 6.0f, lieY + bSize * 0.4f, bSize * 0.9f, cPink)
-            drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 0.1f, bSize * 1.1f, cDark)
-            drawBrick(canvas, x + bSize * 7.9f, lieY + bSize * 0.4f, bSize * 0.9f, cPink)
+        when (species) {
+            PetSpecies.DUCK -> {
+                drawBrick(canvas, x + bSize * 7.0f, lieY + bSize * 0.2f, bSize * 0.9f, C_DUCK_DARK)
+            }
+            PetSpecies.PANDA -> {
+                drawBrick(canvas, x + bSize * 5.0f, lieY + bSize * 0.1f, bSize * 1.3f, C_PANDA_BLACK)
+                drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 0.1f, bSize * 1.3f, C_PANDA_BLACK)
+            }
+            PetSpecies.FOX -> {
+                drawBrick(canvas, x + bSize * 5.1f, lieY + bSize * 0.0f, bSize * 1.2f, C_FOX_DARK)
+                drawBrick(canvas, x + bSize * 6.0f, lieY + bSize * 0.3f, bSize * 0.9f, C_CAT_WHITE)
+                drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 0.0f, bSize * 1.2f, C_FOX_DARK)
+            }
+            PetSpecies.DOG -> {
+                drawBrick(canvas, x + bSize * 5.2f, lieY + bSize * 0.2f, bSize * 1.1f, cDark)
+                drawBrick(canvas, x + bSize * 6.2f, lieY + bSize * 0.3f, bSize * 0.9f, cWhite)
+                drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 0.2f, bSize * 1.1f, cDark)
+            }
+            PetSpecies.CAT -> {
+                drawBrick(canvas, x + bSize * 5.2f, lieY + bSize * 0.1f, bSize * 1.1f, cDark)
+                drawBrick(canvas, x + bSize * 6.0f, lieY + bSize * 0.4f, bSize * 0.9f, C_CAT_PINK)
+                drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 0.1f, bSize * 1.1f, cDark)
+                drawBrick(canvas, x + bSize * 7.9f, lieY + bSize * 0.4f, bSize * 0.9f, C_CAT_PINK)
+            }
         }
 
         // Щечки
-        drawBrick(canvas, x + bSize * 5.6f, lieY + bSize * 2.3f, bSize * 1.3f, if (isDog) cWhite else cMain)
-        drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 2.3f, bSize * 1.3f, if (isDog) cWhite else cMain)
+        drawBrick(canvas, x + bSize * 5.6f, lieY + bSize * 2.3f, bSize * 1.3f, if (species == PetSpecies.CAT) cMain else cWhite)
+        drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 2.3f, bSize * 1.3f, if (species == PetSpecies.CAT) cMain else cWhite)
 
-        // Закрытые глазки блаженства (^ ^ или сон - -)
-        drawBrick(canvas, x + bSize * 6.7f, lieY + bSize * 2.2f, bSize * 1.0f, C_CAT_EYE)
-        drawBrick(canvas, x + bSize * 8.0f, lieY + bSize * 2.2f, bSize * 1.0f, C_CAT_EYE)
+        if (species == PetSpecies.PANDA) {
+            drawBrick(canvas, x + bSize * 6.5f, lieY + bSize * 2.0f, bSize * 1.3f, C_PANDA_BLACK)
+            drawBrick(canvas, x + bSize * 7.9f, lieY + bSize * 2.0f, bSize * 1.3f, C_PANDA_BLACK)
+        }
+
+        // Закрытые глазки блаженства
+        val eyeColor = if (species == PetSpecies.PANDA) Color.WHITE else C_CAT_EYE
+        drawBrick(canvas, x + bSize * 6.7f, lieY + bSize * 2.2f, bSize * 1.0f, eyeColor)
+        drawBrick(canvas, x + bSize * 8.0f, lieY + bSize * 2.2f, bSize * 1.0f, eyeColor)
 
         // Розовый румянец на щечках
-        drawBrick(canvas, x + bSize * 5.8f, lieY + bSize * 3.1f, bSize * 0.85f, cPink)
-        drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 3.1f, bSize * 0.85f, cPink)
+        drawBrick(canvas, x + bSize * 5.8f, lieY + bSize * 3.1f, bSize * 0.85f, C_CAT_PINK)
+        drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 3.1f, bSize * 0.85f, C_CAT_PINK)
 
         // Мордочка и носик
-        drawBrick(canvas, x + bSize * 7.1f, lieY + bSize * 2.8f, bSize * 1.0f, cWhite)
-        drawBrick(canvas, x + bSize * 7.9f, lieY + bSize * 2.8f, bSize * 1.0f, cWhite)
-        drawBrick(canvas, x + bSize * 7.4f, lieY + bSize * 2.6f, bSize * 0.9f, if (isDog) C_DOG_NOSE else cPink)
+        if (species == PetSpecies.DUCK) {
+            drawBrick(canvas, x + bSize * 7.0f, lieY + bSize * 2.7f, bSize * 2.0f, C_DUCK_BEAK)
+        } else {
+            drawBrick(canvas, x + bSize * 7.1f, lieY + bSize * 2.8f, bSize * 1.0f, cWhite)
+            drawBrick(canvas, x + bSize * 7.9f, lieY + bSize * 2.8f, bSize * 1.0f, cWhite)
+            drawBrick(canvas, x + bSize * 7.4f, lieY + bSize * 2.6f, bSize * 0.9f, cNose)
     }
 
     /**
@@ -637,27 +835,21 @@ class PixelPetRenderer(private val context: Context) {
     }
 
     /**
-     * Парящие в воздухе сердечки (❤️) и мерцающие золотые звездочки (✨).
+     * Парящие в воздухе уютные сердечки (❤️) строго НАД головой питомца.
      */
     fun drawFloatingHearts(canvas: Canvas, cx: Float, topY: Float, bSize: Float, time: Long) {
         val timeSec = time * 0.001f
         for (i in 0..2) {
             val p = ((timeSec * 0.7f + i * 0.33f) % 1.0f)
-            val riseY = topY - p * (bSize * 6.5f)
-            val driftX = sin(p * 5.0f + i * 2.1f) * (bSize * 1.6f) + (i - 1) * bSize * 1.3f
+            val riseY = topY - p * (bSize * 5.0f)
+            val driftX = sin(p * 4.0f + i * 2.1f) * (bSize * 1.0f) + (i - 1) * bSize * 0.8f
             val px = cx + driftX
 
             val alpha = ((1.0f - p) * 255).toInt().coerceIn(0, 255)
             textPaint.alpha = alpha
-            textPaint.textSize = bSize * (1.8f + p * 0.4f)
-
-            if (i % 2 == 0) {
-                textPaint.color = C_HEART_RED
-                canvas.drawText("❤️", px, riseY, textPaint)
-            } else {
-                textPaint.color = C_STAR_GOLD
-                canvas.drawText("✨", px, riseY, textPaint)
-            }
+            textPaint.textSize = bSize * (1.5f + p * 0.3f)
+            textPaint.color = C_HEART_RED
+            canvas.drawText("❤️", px, riseY, textPaint)
         }
     }
 
@@ -747,27 +939,20 @@ class PixelPetRenderer(private val context: Context) {
     }
 
     /**
-     * PetMode.WAVE_POKE: Сердечки, звездочки и искры вокруг радостного машущего питомца!
+     * PetMode.WAVE_POKE: Мягкие парящие сердечки НАД головой радостного машущего питомца.
      */
     private fun drawWavePokeAccessories(canvas: Canvas, x: Float, y: Float, bSize: Float, time: Long) {
         val timeSec = time * 0.001f
+        textPaint.textSize = bSize * 1.6f
+        textPaint.color = C_HEART_RED
 
-        // Летающие сердечки и звездочки
-        textPaint.textSize = bSize * 2.2f
-
-        for (i in 0..3) {
-            val pPhase = ((timeSec * 1.5f + i * 0.25f) % 1.0f)
-            val pY = y + bSize * 4.0f - pPhase * (bSize * 6.5f)
-            val pX = x + bSize * (1.0f + i * 2.4f) + sin(pPhase * 6f + i) * (bSize * 1.2f)
+        for (i in 0..2) {
+            val pPhase = ((timeSec * 1.2f + i * 0.33f) % 1.0f)
+            val pY = y - bSize * 0.8f - pPhase * (bSize * 4.5f)
+            val pX = x + bSize * (2.5f + i * 1.8f) + sin(pPhase * 5f + i) * (bSize * 0.8f)
 
             textPaint.alpha = ((1f - pPhase) * 255).toInt().coerceIn(0, 255)
-            if (i % 2 == 0) {
-                textPaint.color = C_HEART_RED
-                canvas.drawText("❤️", pX, pY, textPaint)
-            } else {
-                textPaint.color = C_STAR_GOLD
-                canvas.drawText("⭐", pX, pY, textPaint)
-            }
+            canvas.drawText("❤️", pX, pY, textPaint)
         }
     }
 

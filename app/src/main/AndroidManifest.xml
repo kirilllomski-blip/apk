@@ -42,6 +42,19 @@
             </intent-filter>
         </service>
 
+        <receiver
+            android:name=".PixelPetWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.pixelisland.app.ACTION_WIDGET_FEED" />
+                <action android:name="com.pixelisland.app.ACTION_WIDGET_LOVE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/pixel_pet_widget_info" />
+        </receiver>
+
     </application>
 
 </manifest>
