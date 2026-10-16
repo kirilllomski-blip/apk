@@ -190,7 +190,13 @@ class IslandAccessibilityService : AccessibilityService(), SensorEventListener {
         scope.launch {
             IslandStateBus.state.collect { state ->
                 layoutParams?.let { lp ->
-                    if (lp.x != state.offsetX || lp.y != state.offsetY) {
+                    val density = resources.displayMetrics.density
+                    val targetW = if (state.isExpanded) (320f * density).toInt() else ((if (state.hasGuestPet) 190f else 150f) * density * state.islandScale).toInt()
+                    val targetH = if (state.isExpanded) (170f * density).toInt() else (44f * density * state.islandScale).toInt()
+
+                    if (lp.width != targetW || lp.height != targetH || lp.x != state.offsetX || lp.y != state.offsetY) {
+                        lp.width = targetW
+                        lp.height = targetH
                         lp.x = state.offsetX
                         lp.y = state.offsetY
                         try {

@@ -58,6 +58,19 @@ class IslandOverlayView(context: Context) : View(context) {
     private val btnAcceptRect = RectF()
     private val btnDeclineRect = RectF()
 
+    // Кнопка закрытия [ ✕ ] раскрытой панели
+    private val btnCloseRect = RectF()
+    private val btnCloseBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#1F2430")
+        style = Paint.Style.FILL
+    }
+    private val btnCloseTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#94A3B8")
+        textSize = 11.5f * scaledDensity
+        isFakeBoldText = true
+        textAlign = Paint.Align.CENTER
+    }
+
     // Оформление капсулы
     private val capsuleBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#12151B")
@@ -350,9 +363,12 @@ class IslandOverlayView(context: Context) : View(context) {
         }
     }
 
+    private var lastExpanded: Boolean? = null
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val widthPx = dp(320f).toInt()
-        val heightPx = dp(170f).toInt()
+        val state = IslandStateBus.state.value
+        val widthPx = if (state.isExpanded) dp(320f).toInt() else (dp(if (state.hasGuestPet) 190f else 150f) * state.islandScale).toInt()
+        val heightPx = if (state.isExpanded) dp(170f).toInt() else (dp(44f) * state.islandScale).toInt()
         setMeasuredDimension(widthPx, heightPx)
     }
 
@@ -361,6 +377,10 @@ class IslandOverlayView(context: Context) : View(context) {
         startAnimation()
         scope.launch {
             IslandStateBus.state.collect { state ->
+                if (state.isExpanded != lastExpanded) {
+                    lastExpanded = state.isExpanded
+                    requestLayout()
+                }
                 if (state.isScreenOn && !isAnimRunning) {
                     startAnimation()
                 } else if (!state.isScreenOn && isAnimRunning) {
@@ -405,6 +425,7 @@ class IslandOverlayView(context: Context) : View(context) {
             btnVisitRect.setEmpty()
             btnAcceptRect.setEmpty()
             btnDeclineRect.setEmpty()
+            btnCloseRect.setEmpty()
 
             val baseWidthDp = if (state.hasGuestPet) 180f else 140f
             val capsuleW = dp(baseWidthDp) * state.islandScale
@@ -767,8 +788,15 @@ class IslandOverlayView(context: Context) : View(context) {
             canvas.drawRoundRect(capsuleRect, cornerRadius, cornerRadius, capsuleBgPaint)
             canvas.drawRoundRect(capsuleRect, cornerRadius, cornerRadius, capsuleHighlightPaint)
 
-            // Тамагочи-статы в верхнем правом углу
-            val statsX = capsuleRect.right - dp(14f)
+            // Кнопка закрытия [ ✕ ]
+            val closeSize = dp(22f)
+            btnCloseRect.set(capsuleRect.right - dp(12f) - closeSize, capsuleRect.top + dp(10f), capsuleRect.right - dp(12f), capsuleRect.top + dp(10f) + closeSize)
+            canvas.drawCircle(btnCloseRect.centerX(), btnCloseRect.centerY(), closeSize / 2f, btnCloseBgPaint)
+            val closeTextY = btnCloseRect.centerY() - (btnCloseTextPaint.descent() + btnCloseTextPaint.ascent()) / 2f
+            canvas.drawText("✕", btnCloseRect.centerX(), closeTextY, btnCloseTextPaint)
+
+            // Тамагочи-статы в верхнем правом углу (левее крестика)
+            val statsX = btnCloseRect.left - dp(8f)
             val statsY = capsuleRect.top + dp(16f)
             val statsInfo = "🍖 ${state.hunger}%  ⚡ ${state.energy}%  💖 ${state.mood}%"
             statsTextPaint.textAlign = Paint.Align.RIGHT
@@ -994,6 +1022,10 @@ class IslandOverlayView(context: Context) : View(context) {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 if (!capsuleRect.contains(event.x, event.y)) {
+                    if (state.isExpanded) {
+                        cancelAutoCollapse()
+                        IslandStateBus.setExpanded(false)
+                    }
                     return false
                 }
                 downX = event.x
@@ -1003,6 +1035,10 @@ class IslandOverlayView(context: Context) : View(context) {
             }
             MotionEvent.ACTION_UP -> {
                 if (!capsuleRect.contains(downX, downY) && !capsuleRect.contains(event.x, event.y)) {
+                    if (state.isExpanded) {
+                        cancelAutoCollapse()
+                        IslandStateBus.setExpanded(false)
+                    }
                     return false
                 }
 
@@ -1010,17 +1046,31 @@ class IslandOverlayView(context: Context) : View(context) {
                 val dt = System.currentTimeMillis() - downTime
 
                 if (!state.isExpanded) {
-                    // СВЕРНУТЫЙ РЕЖИМ: свайп бросает мячик / клубок, одиночный тап раскрывает панель
+                    // СВЕРНУТЫЙ РЕЖИМ:
+                    // 1. Свайп -> бросок мячика (апортировка)
+                    // 2. Удержание (>350ms) -> раскрытие панели управления
+                    // 3. Быстрый тап -> радостное взаимодействие с питомцем (машет лапкой, сердечки)
                     if (abs(dx) > dp(14f) && dt < 650L) {
                         startFetchGame(throwRight = (dx > 0))
                     } else if (capsuleRect.contains(event.x, event.y)) {
                         vibrateClick()
-                        IslandStateBus.setExpanded(true)
-                        scheduleAutoCollapse(5000L)
+                        if (dt >= 350L) {
+                            IslandStateBus.setExpanded(true)
+                            scheduleAutoCollapse(5000L)
+                        } else {
+                            val partnerName = state.partnerUsername.ifBlank { "напарник" }
+                            IslandStateBus.triggerPokeWave(partnerName)
+                        }
                     }
                 } else {
                     // РАСКРЫТЫЙ РЕЖИМ
                     when {
+                        // Кнопка закрытия [ ✕ ]
+                        btnCloseRect.contains(event.x, event.y) || btnCloseRect.contains(downX, downY) -> {
+                            vibrateClick()
+                            cancelAutoCollapse()
+                            IslandStateBus.setExpanded(false)
+                        }
                         // Кнопки управления плеером
                         btnPrevRect.contains(event.x, event.y) || btnPrevRect.contains(downX, downY) -> {
                             vibrateClick()

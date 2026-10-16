@@ -107,12 +107,11 @@ object IslandStateBus {
         _state.update {
             it.copy(
                 lastNotificationText = text,
-                petMode = PetMode.NOTIFICATION,
-                isExpanded = text != null
+                petMode = if (text != null) PetMode.NOTIFICATION else it.petMode
             )
         }
         val runnable = Runnable {
-            _state.update { it.copy(isExpanded = false) }
+            _state.update { it.copy(lastNotificationText = null) }
             recalculatePetMode()
         }
         notificationRunnable = runnable

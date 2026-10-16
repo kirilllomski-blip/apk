@@ -330,6 +330,7 @@ class PixelPetRenderer(private val context: Context) {
         }
 
         if (state.isPartnerBatteryLow) {
+            textPaint.alpha = 255
             textPaint.textSize = bSize * 2.2f
             textPaint.color = Color.parseColor("#EF4444")
             val alertY = dstRect.top + bSize * 1.5f + sin(timeSec * 6f) * (bSize * 0.4f)
