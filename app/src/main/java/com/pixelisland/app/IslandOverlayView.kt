@@ -437,11 +437,11 @@ class IslandOverlayView(context: Context) : View(context) {
                     val minX = capsuleRect.left + dp(40f) * state.islandScale
                     val maxX = (capsuleRect.right - dp(8f) * state.islandScale - petSize).coerceAtLeast(minX)
 
-                    val clampedX: Float
-                    val isWalking: Boolean
-                    val isFacingLeft: Boolean
-                    val isLyingDown: Boolean
-                    val isEmittingHearts: Boolean
+                    var clampedX: Float
+                    var isWalking: Boolean
+                    var isFacingLeft: Boolean
+                    var isLyingDown: Boolean
+                    var isEmittingHearts: Boolean
                     var isSprinting = false
                     var hasBallInMouth = false
 
