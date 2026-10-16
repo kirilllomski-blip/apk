@@ -205,8 +205,27 @@ class IslandOverlayView(context: Context) : View(context) {
     }
 
     private val eqPaint1 = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#00E5FF") }
-    private val eqPaint2 = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#00E676") }
-    private val eqPaint3 = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FF1744") }
+    private val eqPaint2 = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#10B981") }
+    private val eqPaint3 = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FACC15") }
+    private val eqPaint4 = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#F43F5E") }
+
+    private val neonTrackBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#1E293B")
+        style = Paint.Style.FILL
+    }
+    private val neonTrackFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#00E5FF")
+        style = Paint.Style.FILL
+    }
+    private val neonThumbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#F43F5E")
+        style = Paint.Style.FILL
+    }
+    private val mediaTimePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#94A3B8")
+        textSize = 9.5f * scaledDensity
+        isFakeBoldText = true
+    }
 
     // ==================== МИНИ-ИГРА В МЯЧИК (FETCH MINI-GAME) ====================
     private enum class FetchPhase {
@@ -383,20 +402,42 @@ class IslandOverlayView(context: Context) : View(context) {
             canvas.drawRoundRect(capsuleRect, cornerRadius, cornerRadius, capsuleBgPaint)
             canvas.drawRoundRect(capsuleRect, cornerRadius, cornerRadius, capsuleHighlightPaint)
 
-            // Левый индикатор активности
+            // Левый индикатор активности: 4-полосный эквалайзер и неоновый прогресс-бар трека
             if (state.petMode == PetMode.MUSIC || state.isMusicPlaying) {
-                val barW = dp(3f) * state.islandScale
-                val barGap = dp(2f) * state.islandScale
-                val eqStartX = capsuleRect.left + dp(14f) * state.islandScale
+                val barW = dp(2.8f) * state.islandScale
+                val barGap = dp(1.8f) * state.islandScale
+                val eqStartX = capsuleRect.left + dp(12f) * state.islandScale
                 val centerY = capsuleRect.centerY()
 
-                val h1 = dp(4f + ((frameIndex * 3) % 9)) * state.islandScale
-                val h2 = dp(3f + ((frameIndex * 5 + 4) % 11)) * state.islandScale
-                val h3 = dp(5f + ((frameIndex * 2 + 3) % 8)) * state.islandScale
+                val timeSec = System.currentTimeMillis() * 0.001f
+                val h1 = dp(4f + abs(sin(timeSec * 8f)) * 12f) * state.islandScale
+                val h2 = dp(5f + abs(sin(timeSec * 12f + 1.2f)) * 14f) * state.islandScale
+                val h3 = dp(3f + abs(sin(timeSec * 9f + 2.5f)) * 10f) * state.islandScale
+                val h4 = dp(4f + abs(sin(timeSec * 14f + 0.7f)) * 11f) * state.islandScale
 
                 canvas.drawRoundRect(RectF(eqStartX, centerY - h1 / 2f, eqStartX + barW, centerY + h1 / 2f), barW / 2f, barW / 2f, eqPaint1)
-                canvas.drawRoundRect(RectF(eqStartX + barW + barGap, centerY - h2 / 2f, eqStartX + barW * 2 + barGap, centerY + h2 / 2f), barW / 2f, barW / 2f, eqPaint2)
+                canvas.drawRoundRect(RectF(eqStartX + (barW + barGap), centerY - h2 / 2f, eqStartX + barW * 2 + barGap, centerY + h2 / 2f), barW / 2f, barW / 2f, eqPaint2)
                 canvas.drawRoundRect(RectF(eqStartX + (barW + barGap) * 2, centerY - h3 / 2f, eqStartX + (barW + barGap) * 2 + barW, centerY + h3 / 2f), barW / 2f, barW / 2f, eqPaint3)
+                canvas.drawRoundRect(RectF(eqStartX + (barW + barGap) * 3, centerY - h4 / 2f, eqStartX + (barW + barGap) * 3 + barW, centerY + h4 / 2f), barW / 2f, barW / 2f, eqPaint4)
+
+                // НЕОНОВЫЙ ПРОГРЕСС-БАР ТРЕКА ПО НИЖНЕЙ КРОМКЕ КАПСУЛЫ
+                val barMargin = cornerRadius * 0.85f
+                val trackLeft = capsuleRect.left + barMargin
+                val trackRight = capsuleRect.right - barMargin
+                val trackY = capsuleRect.bottom - dp(2.4f) * state.islandScale
+                val trackH = dp(2.2f) * state.islandScale
+                val totalTrackW = (trackRight - trackLeft).coerceAtLeast(dp(20f))
+
+                // Фоновая подложка
+                canvas.drawRoundRect(RectF(trackLeft, trackY - trackH / 2f, trackRight, trackY + trackH / 2f), trackH / 2f, trackH / 2f, neonTrackBgPaint)
+
+                // Неоновый заполняющийся прогресс
+                val progress = ((timeSec * 0.12f) % 1.0f)
+                val fillRight = trackLeft + totalTrackW * progress
+                canvas.drawRoundRect(RectF(trackLeft, trackY - trackH / 2f, fillRight, trackY + trackH / 2f), trackH / 2f, trackH / 2f, neonTrackFillPaint)
+
+                // Неоновая светящаяся головка прогресса
+                canvas.drawCircle(fillRight, trackY, dp(2.2f) * state.islandScale, neonThumbPaint)
             } else if (state.petMode == PetMode.NOTIFICATION) {
                 val dotRadius = dp(4.5f) * state.islandScale
                 val dotX = capsuleRect.left + dp(16f) * state.islandScale
@@ -772,15 +813,39 @@ class IslandOverlayView(context: Context) : View(context) {
                     val doomBaseline = bannerRect.centerY() - (doomTextPaint.descent() + doomTextPaint.ascent()) / 2f
                     canvas.drawText(doomText, bannerRect.centerX(), doomBaseline, doomTextPaint)
                 } else if (isMusicActive) {
-                    // ==================== РЕЖИМ МУЗЫКИ: НАЗВАНИЕ + 3 КНОПКИ ПЛЕЕРА ====================
+                    // ==================== РЕЖИМ МУЗЫКИ: НАЗВАНИЕ + НЕОНОВЫЙ SEEKBAR + 3 КНОПКИ ====================
                     val trackTitle = state.mediaTitle ?: "Тестовый трек играет"
                     val fullTitle = "🎵 $trackTitle"
                     val ellipsizedTitle = TextUtils.ellipsize(fullTitle, mediaTitlePaint, maxTextWidth, TextUtils.TruncateAt.END).toString()
-                    canvas.drawText(ellipsizedTitle, textStartX, capsuleRect.top + dp(46f), mediaTitlePaint)
+                    canvas.drawText(ellipsizedTitle, textStartX, capsuleRect.top + dp(38f), mediaTitlePaint)
 
-                    // 3 кнопки плеера прямо под названием трека: [ ⏮️ ], [ ⏯️ Пауза ], [ ⏭️ След. ]
-                    val mediaBtnTop = capsuleRect.top + dp(56f)
-                    val mediaBtnBottom = capsuleRect.top + dp(88f)
+                    // Неоновый интерактивный seekbar
+                    val seekTop = capsuleRect.top + dp(44f)
+                    val seekBottom = seekTop + dp(3f)
+                    val seekW = maxTextWidth
+                    val timeSec = System.currentTimeMillis() * 0.001f
+                    val trackProgress = ((timeSec * 0.08f) % 1.0f)
+
+                    // Фоновая дорожка
+                    canvas.drawRoundRect(RectF(textStartX, seekTop, textStartX + seekW, seekBottom), dp(1.5f), dp(1.5f), neonTrackBgPaint)
+                    // Неоновый заполненный отрезок
+                    val fillW = seekW * trackProgress
+                    canvas.drawRoundRect(RectF(textStartX, seekTop, textStartX + fillW, seekBottom), dp(1.5f), dp(1.5f), neonTrackFillPaint)
+                    // Неоновая светящаяся точка
+                    canvas.drawCircle(textStartX + fillW, (seekTop + seekBottom) / 2f, dp(3f), neonThumbPaint)
+
+                    // Таймкоды трека (01:15 / 03:30)
+                    val currentSecTotal = (trackProgress * 210f).toInt()
+                    val curStr = String.format(java.util.Locale.US, "%02d:%02d", currentSecTotal / 60, currentSecTotal % 60)
+                    val totalStr = "03:30"
+                    mediaTimePaint.textAlign = Paint.Align.LEFT
+                    canvas.drawText(curStr, textStartX, seekBottom + dp(8.5f), mediaTimePaint)
+                    mediaTimePaint.textAlign = Paint.Align.RIGHT
+                    canvas.drawText(totalStr, textStartX + seekW, seekBottom + dp(8.5f), mediaTimePaint)
+
+                    // 3 кнопки плеера прямо под seekbar: [ ⏮️ ], [ ⏯️ Пауза ], [ ⏭️ След. ]
+                    val mediaBtnTop = capsuleRect.top + dp(58f)
+                    val mediaBtnBottom = capsuleRect.top + dp(90f)
                     val availMediaW = capsuleRect.right - dp(14f) - textStartX
                     val mediaGap = dp(6f)
 

@@ -87,8 +87,7 @@ object IslandStateBus {
             it.copy(
                 mediaTitle = title,
                 isMusicPlaying = playing,
-                petMode = if (playing && title != null) PetMode.MUSIC else it.petMode,
-                isExpanded = if (playing && title != null) true else it.isExpanded
+                petMode = if (playing && title != null) PetMode.MUSIC else it.petMode
             )
         }
         recalculatePetMode()
