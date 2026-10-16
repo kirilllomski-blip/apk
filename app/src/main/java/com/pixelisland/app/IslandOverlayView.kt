@@ -769,14 +769,14 @@ class IslandOverlayView(context: Context) : View(context) {
 
             // Тамагочи-статы в верхнем правом углу
             val statsX = capsuleRect.right - dp(14f)
-            val statsY = capsuleRect.top + dp(18f)
+            val statsY = capsuleRect.top + dp(16f)
             val statsInfo = "🍖 ${state.hunger}%  ⚡ ${state.energy}%  💖 ${state.mood}%"
             statsTextPaint.textAlign = Paint.Align.RIGHT
             canvas.drawText(statsInfo, statsX, statsY, statsTextPaint)
 
-            val levelInfo = "Lv.${state.petLevel} (${state.xp}/100 XP)"
+            val levelAndSteps = "Lv.${state.petLevel} (${state.xp} XP) • 👟 ${state.stepsToday} • 🪙 ${state.coins}"
             statsLevelPaint.textAlign = Paint.Align.RIGHT
-            canvas.drawText(levelInfo, statsX, statsY + dp(13f), statsLevelPaint)
+            canvas.drawText(levelAndSteps, statsX, statsY + dp(12.5f), statsLevelPaint)
 
             // 3D-питомец слева (в наушниках при музыке)
             val petSize = dp(56f)

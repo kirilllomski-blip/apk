@@ -58,7 +58,10 @@ data class IslandState(
     val isProLifetime: Boolean = false,
     val roomCode: String = "",
     val chargingPulseUntilMs: Long = 0L,
-    val batteryLevel: Int = 100
+    val batteryLevel: Int = 100,
+    val stepsToday: Int = 1240,
+    val stepsGoal: Int = 5000,
+    val coins: Int = 120
 )
 
 object IslandStateBus {
@@ -238,6 +241,33 @@ object IslandStateBus {
                 xp = newXp,
                 petLevel = newLevel
             )
+        }
+    }
+
+    fun updateSteps(steps: Int) {
+        _state.update { current ->
+            val oldMilestone = current.stepsToday / 1000
+            val newMilestone = steps / 1000
+            if (newMilestone > oldMilestone) {
+                val newCoins = current.coins + 25 * (newMilestone - oldMilestone)
+                current.copy(stepsToday = steps, coins = newCoins)
+            } else {
+                current.copy(stepsToday = steps)
+            }
+        }
+    }
+
+    fun addSteps(delta: Int = 500) {
+        _state.update { current ->
+            val newSteps = current.stepsToday + delta
+            val oldMilestone = current.stepsToday / 1000
+            val newMilestone = newSteps / 1000
+            if (newMilestone > oldMilestone) {
+                val newCoins = current.coins + 25 * (newMilestone - oldMilestone)
+                current.copy(stepsToday = newSteps, coins = newCoins)
+            } else {
+                current.copy(stepsToday = newSteps)
+            }
         }
     }
 

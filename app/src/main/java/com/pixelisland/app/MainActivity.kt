@@ -474,6 +474,23 @@ class MainActivity : Activity() {
                 Toast.makeText(context, "3D-бургер падает, питомец жует, салют XP!", Toast.LENGTH_SHORT).show()
             })
             addView(row3)
+
+            // Строка 4: Квест шагов и мячик
+            val row4 = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(3), 0, dp(3))
+            }
+            row4.addView(createSmallTestButton("👟 +500 Шагов", C_BRICK_MINT, 1f) {
+                vibrateQuick()
+                IslandStateBus.addSteps(500)
+                Toast.makeText(context, "👟 +500 шагов добавлено! Проверь XP и монеты на островке!", Toast.LENGTH_SHORT).show()
+            })
+            row4.addView(createSmallTestButton("🐾 Поиграть", C_BRICK_AMBER, 1f) {
+                vibrateQuick()
+                IslandStateBus.playWithPet()
+                Toast.makeText(context, "🐾 Питомец радуется и машет лапкой!", Toast.LENGTH_SHORT).show()
+            })
+            addView(row4)
         }
         container.addView(testCard)
     }

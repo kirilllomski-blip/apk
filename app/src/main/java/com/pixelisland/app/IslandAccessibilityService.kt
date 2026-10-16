@@ -47,7 +47,9 @@ class IslandAccessibilityService : AccessibilityService(), SensorEventListener {
 
     private var sensorManager: SensorManager? = null
     private var accelerometer: Sensor? = null
+    private var stepSensor: Sensor? = null
     private var isSensorRegistered = false
+    private var baseSteps = -1
 
     // ==================== АВТО-ДЕТЕКТОР АНТИ-РИЛСОВ ====================
     private var currentForegroundPackage: String = ""
@@ -202,9 +204,11 @@ class IslandAccessibilityService : AccessibilityService(), SensorEventListener {
             }
         }
 
-        // Датчик акселерометра для наклона
+        // Датчик акселерометра для наклона и шагомер для квеста прогулок
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
         accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        stepSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+            ?: sensorManager?.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
 
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
         val isScreenInteractive = powerManager?.isInteractive ?: true
@@ -257,8 +261,13 @@ class IslandAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     private fun registerAccelerometer() {
-        if (!isSensorRegistered && accelerometer != null) {
-            sensorManager?.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI)
+        if (!isSensorRegistered) {
+            accelerometer?.let {
+                sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+            }
+            stepSensor?.let {
+                sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+            }
             isSensorRegistered = true
         }
     }
@@ -271,11 +280,26 @@ class IslandAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
-        if (event == null || event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
-        val gx = event.values[0]
-        val shiftPx = (-gx * 8f).coerceIn(-35f, 35f)
-        val hanging = abs(gx) > 4.5f
-        IslandStateBus.updateTilt(shiftPx, hanging)
+        if (event == null) return
+        when (event.sensor.type) {
+            Sensor.TYPE_ACCELEROMETER -> {
+                val gx = event.values[0]
+                val shiftPx = (-gx * 8f).coerceIn(-35f, 35f)
+                val hanging = abs(gx) > 4.5f
+                IslandStateBus.updateTilt(shiftPx, hanging)
+            }
+            Sensor.TYPE_STEP_COUNTER -> {
+                val totalSteps = event.values[0].toInt()
+                if (baseSteps < 0) {
+                    baseSteps = totalSteps
+                }
+                val currentSteps = (totalSteps - baseSteps).coerceAtLeast(0)
+                IslandStateBus.updateSteps(currentSteps)
+            }
+            Sensor.TYPE_STEP_DETECTOR -> {
+                IslandStateBus.addSteps(1)
+            }
+        }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
