@@ -519,6 +519,13 @@ class MainActivity : Activity() {
                 IslandStateBus.triggerLowBatteryAlert(12)
                 Toast.makeText(context, "🪫 У напарника 12% заряда! Питомец тревожится и дрожит!", Toast.LENGTH_SHORT).show()
             })
+            row6.addView(createSmallTestButton("👑 Lv.5 Корона", C_BRICK_AMBER, 1f) {
+                vibrateQuick()
+                val cur = IslandStateBus.state.value.petLevel
+                val newLevel = if (cur >= 5) 1 else 5
+                IslandStateBus.setLevel(newLevel)
+                Toast.makeText(context, if (newLevel >= 5) "👑 Эволюция: Королевский питомец с 3D LEGO Короной!" else "Уровень сброшен на Lv.1 (Малыш)", Toast.LENGTH_SHORT).show()
+            })
             addView(row6)
         }
         container.addView(testCard)

@@ -283,6 +283,10 @@ object IslandStateBus {
         _state.update { it.copy(forceNightcap = !it.forceNightcap, forceSunglasses = false) }
     }
 
+    fun setLevel(level: Int) {
+        _state.update { it.copy(petLevel = level.coerceIn(1, 10)) }
+    }
+
     fun triggerDoomscrollWarning(warning: String) {
         doomscrollRunnable?.let { handler.removeCallbacks(it) }
         _state.update {

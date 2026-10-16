@@ -313,8 +313,13 @@ class PixelPetRenderer(private val context: Context) {
 
         if (showNightcap) {
             drawNightCap(canvas, startX, startY, bSize, isSleepingOrLoaf)
-        } else if (showSunglasses) {
-            drawSunglasses(canvas, startX, startY, bSize)
+        } else {
+            if (state.petLevel >= 5) {
+                drawLegoCrown(canvas, startX, startY, bSize, isSleepingOrLoaf)
+            }
+            if (showSunglasses) {
+                drawSunglasses(canvas, startX, startY, bSize)
+            }
         }
 
         canvas.restore()
@@ -875,6 +880,45 @@ class PixelPetRenderer(private val context: Context) {
 
         drawBrick(canvas, x + bSize * 5.2f, y + bSize * 1.3f, bSize * 1.6f, frameColor)
         drawBrick(canvas, x + bSize * 5.6f, y + bSize * 1.5f, bSize * 0.6f, lensShine)
+    }
+
+    /**
+     * Королевская золотая 3D LEGO-корона для питомцев уровня 5+
+     */
+    private fun drawLegoCrown(canvas: Canvas, x: Float, y: Float, bSize: Float, isLying: Boolean = false) {
+        val cGold = Color.parseColor("#FACC15")
+        val cGoldDark = Color.parseColor("#CA8A04")
+        val cRuby = Color.parseColor("#EF4444")
+        val cDiamond = Color.parseColor("#38BDF8")
+
+        val baseOffsetX = if (isLying) bSize * 0.4f else 0f
+        val baseOffsetY = if (isLying) bSize * 0.4f else 0f
+        val crownY = y - bSize * 0.9f + baseOffsetY
+
+        // Золотой ободок короны из ряда аккуратных кубиков:
+        for (i in 0..3) {
+            drawBrick(canvas, x + bSize * (3.3f + i * 0.85f) + baseOffsetX, crownY, bSize * 0.85f, cGoldDark)
+            drawBrick(canvas, x + bSize * (3.3f + i * 0.85f) + baseOffsetX, crownY - bSize * 0.45f, bSize * 0.85f, cGold)
+        }
+
+        // Зубцы короны с драгоценными камнями:
+        // Левый зубец с рубином
+        drawBrick(canvas, x + bSize * 3.3f + baseOffsetX, crownY - bSize * 1.3f, bSize * 0.85f, cGold)
+        drawBrick(canvas, x + bSize * 3.4f + baseOffsetX, crownY - bSize * 1.8f, bSize * 0.65f, cRuby)
+
+        // Центральный высокий королевский зубец с алмазом
+        drawBrick(canvas, x + bSize * 4.5f + baseOffsetX, crownY - bSize * 1.4f, bSize * 0.95f, cGold)
+        drawBrick(canvas, x + bSize * 4.6f + baseOffsetX, crownY - bSize * 2.15f, bSize * 0.75f, cDiamond)
+
+        // Правый зубец с рубином
+        drawBrick(canvas, x + bSize * 5.85f + baseOffsetX, crownY - bSize * 1.3f, bSize * 0.85f, cGold)
+        drawBrick(canvas, x + bSize * 5.95f + baseOffsetX, crownY - bSize * 1.8f, bSize * 0.65f, cRuby)
+
+        // Искорка блеска на алмазе
+        val sparkle = (sin(System.currentTimeMillis() * 0.006f) + 1f) * 0.5f
+        if (sparkle > 0.65f) {
+            drawBrick(canvas, x + bSize * 4.8f + baseOffsetX, crownY - bSize * 2.6f, bSize * 0.4f, Color.WHITE)
+        }
     }
 
     private fun drawCustomAsset(canvas: Canvas, dstRect: RectF, mode: PetMode, frameIndex: Int, state: IslandState) {
