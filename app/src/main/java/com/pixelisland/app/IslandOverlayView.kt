@@ -227,6 +227,23 @@ class IslandOverlayView(context: Context) : View(context) {
         isFakeBoldText = true
     }
 
+    // Supercharge Pop
+    private val chargePillBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#063319")
+        style = Paint.Style.FILL
+    }
+    private val chargePillBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#00E676")
+        style = Paint.Style.STROKE
+        strokeWidth = 1.2f * density
+    }
+    private val chargeTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#00E676")
+        textSize = 10f * scaledDensity
+        isFakeBoldText = true
+        textAlign = Paint.Align.CENTER
+    }
+
     // ==================== МИНИ-ИГРА В МЯЧИК (FETCH MINI-GAME) ====================
     private enum class FetchPhase {
         IDLE,
@@ -402,8 +419,33 @@ class IslandOverlayView(context: Context) : View(context) {
             canvas.drawRoundRect(capsuleRect, cornerRadius, cornerRadius, capsuleBgPaint)
             canvas.drawRoundRect(capsuleRect, cornerRadius, cornerRadius, capsuleHighlightPaint)
 
-            // Левый индикатор активности: 4-полосный эквалайзер и неоновый прогресс-бар трека
-            if (state.petMode == PetMode.MUSIC || state.isMusicPlaying) {
+            // Левый индикатор активности:
+            val timeNow = System.currentTimeMillis()
+            val isChargingPulse = timeNow < state.chargingPulseUntilMs
+
+            if (isChargingPulse) {
+                // СУПЕР-ЧИП БЫСТРОЙ ЗАРЯДКИ (Supercharge Status Pop) на 3 секунды
+                val timeLeft = (state.chargingPulseUntilMs - timeNow).toFloat()
+                val alpha = (timeLeft / 400f).coerceIn(0f, 1f)
+
+                val pillH = dp(16f) * state.islandScale
+                val pillW = dp(46f) * state.islandScale
+                val chipStartX = capsuleRect.left + dp(9f) * state.islandScale
+                val chipCenterY = capsuleRect.centerY()
+                val pillRect = RectF(chipStartX, chipCenterY - pillH / 2f, chipStartX + pillW, chipCenterY + pillH / 2f)
+
+                val aInt = (alpha * 255).toInt().coerceIn(0, 255)
+                chargePillBgPaint.alpha = aInt
+                chargePillBorderPaint.alpha = aInt
+                chargeTextPaint.alpha = aInt
+
+                canvas.drawRoundRect(pillRect, pillH / 2f, pillH / 2f, chargePillBgPaint)
+                canvas.drawRoundRect(pillRect, pillH / 2f, pillH / 2f, chargePillBorderPaint)
+
+                val chargeStr = "⚡ ${state.batteryLevel}%"
+                val textY = pillRect.centerY() - (chargeTextPaint.descent() + chargeTextPaint.ascent()) / 2f
+                canvas.drawText(chargeStr, pillRect.centerX(), textY, chargeTextPaint)
+            } else if (state.petMode == PetMode.MUSIC || state.isMusicPlaying) {
                 val barW = dp(2.8f) * state.islandScale
                 val barGap = dp(1.8f) * state.islandScale
                 val eqStartX = capsuleRect.left + dp(12f) * state.islandScale

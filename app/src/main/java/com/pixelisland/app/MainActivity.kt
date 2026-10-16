@@ -433,8 +433,8 @@ class MainActivity : Activity() {
             row1.addView(createSmallTestButton("⚡️ Зарядка", C_BRICK_MINT, 1f) {
                 vibrateQuick()
                 val isCharging = !IslandStateBus.state.value.isCharging
-                IslandStateBus.setCharging(isCharging)
-                Toast.makeText(context, if (isCharging) "⚡ Искры и подзарядка!" else "Зарядка отключена", Toast.LENGTH_SHORT).show()
+                IslandStateBus.setCharging(isCharging, triggerPulse = isCharging)
+                Toast.makeText(context, if (isCharging) "⚡ Supercharge Pop 3s!" else "Зарядка отключена", Toast.LENGTH_SHORT).show()
             })
             addView(row1)
 

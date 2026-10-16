@@ -56,7 +56,9 @@ data class IslandState(
     val customPetExpireMs: Long = 0L,
     val customPetVersion: Int = 0,
     val isProLifetime: Boolean = false,
-    val roomCode: String = ""
+    val roomCode: String = "",
+    val chargingPulseUntilMs: Long = 0L,
+    val batteryLevel: Int = 100
 )
 
 object IslandStateBus {
@@ -309,8 +311,16 @@ object IslandStateBus {
         recalculatePetMode()
     }
 
-    fun setCharging(charging: Boolean) {
-        _state.update { it.copy(isCharging = charging) }
+    fun setCharging(charging: Boolean, batteryPct: Int = -1, triggerPulse: Boolean = false) {
+        val until = if (triggerPulse) System.currentTimeMillis() + 3200L else 0L
+        _state.update { current ->
+            val level = if (batteryPct in 0..100) batteryPct else current.batteryLevel
+            current.copy(
+                isCharging = charging,
+                chargingPulseUntilMs = until,
+                batteryLevel = level
+            )
+        }
     }
 
     fun setRoomCode(code: String) {

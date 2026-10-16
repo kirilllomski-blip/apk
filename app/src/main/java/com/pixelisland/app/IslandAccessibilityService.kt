@@ -219,7 +219,10 @@ class IslandAccessibilityService : AccessibilityService(), SensorEventListener {
         val status = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
         val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
                 status == BatteryManager.BATTERY_STATUS_FULL
-        IslandStateBus.setCharging(isCharging)
+        val bLevel = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val bScale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val initialPct = if (bLevel >= 0 && bScale > 0) (bLevel * 100) / bScale else 85
+        IslandStateBus.setCharging(isCharging, initialPct, triggerPulse = false)
 
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
@@ -240,7 +243,11 @@ class IslandAccessibilityService : AccessibilityService(), SensorEventListener {
                         unregisterAccelerometer()
                         reelsWatchSeconds = 0
                     }
-                    Intent.ACTION_POWER_CONNECTED -> IslandStateBus.setCharging(true)
+                    Intent.ACTION_POWER_CONNECTED -> {
+                        val bm = getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+                        val pct = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 85
+                        IslandStateBus.setCharging(true, pct, triggerPulse = true)
+                    }
                     Intent.ACTION_POWER_DISCONNECTED -> IslandStateBus.setCharging(false)
                 }
             }
