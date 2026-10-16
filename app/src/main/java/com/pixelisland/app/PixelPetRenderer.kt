@@ -287,9 +287,6 @@ class PixelPetRenderer(private val context: Context) {
             PetMode.DOOMSCROLL -> {
                 drawDoomscrollSign(canvas, startX, startY, bSize, time)
             }
-            PetMode.CHARGING -> {
-                drawChargingSparkles(canvas, startX, startY, bSize, time)
-            }
             PetMode.NOTIFICATION -> {
                 drawNotificationEnvelope(canvas, startX, startY, bSize, time)
             }
@@ -769,19 +766,6 @@ class PixelPetRenderer(private val context: Context) {
         textPaint.textSize = bSize * 1.35f
         textPaint.alpha = 255
         canvas.drawText("⛔ STOP REELS!", signX + signW / 2f, signY + signH * 0.65f, textPaint)
-    }
-
-    private fun drawChargingSparkles(canvas: Canvas, x: Float, y: Float, bSize: Float, time: Long) {
-        val timeSec = time * 0.001f
-        textPaint.textSize = bSize * 2.2f
-        textPaint.color = Color.parseColor("#10B981")
-        for (i in 0..2) {
-            val p = (timeSec * 2f + i * 0.33f) % 1f
-            val py = y + bSize * 3f - p * bSize * 5f
-            val px = x + bSize * (2f + i * 2.5f)
-            textPaint.alpha = ((1f - p) * 255).toInt().coerceIn(0, 255)
-            canvas.drawText("⚡", px, py, textPaint)
-        }
     }
 
     private fun drawNotificationEnvelope(canvas: Canvas, x: Float, y: Float, bSize: Float, time: Long) {

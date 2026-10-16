@@ -127,16 +127,14 @@ object IslandStateBus {
                 mood = newMood,
                 xp = newXp,
                 petLevel = newLevel,
-                petMode = PetMode.EATING,
-                isExpanded = true
+                petMode = PetMode.EATING
             )
         }
         val runnable = Runnable {
-            _state.update { it.copy(isExpanded = false) }
             recalculatePetMode()
         }
         eatingRunnable = runnable
-        handler.postDelayed(runnable, 4000L)
+        handler.postDelayed(runnable, 3500L)
     }
 
     fun triggerPokeWave(targetName: String) {
@@ -144,21 +142,19 @@ object IslandStateBus {
         _state.update {
             it.copy(
                 petMode = PetMode.WAVE_POKE,
-                partnerStatusText = "👋 Привет и пинок для @$targetName!",
-                isExpanded = true
+                partnerStatusText = "👋 Привет и пинок для @$targetName!"
             )
         }
         val runnable = Runnable {
             _state.update {
                 it.copy(
-                    isExpanded = false,
                     partnerStatusText = null
                 )
             }
             recalculatePetMode()
         }
         pokeRunnable = runnable
-        handler.postDelayed(runnable, 5000L)
+        handler.postDelayed(runnable, 4000L)
     }
 
     fun triggerPartnerHeart() {
@@ -166,21 +162,19 @@ object IslandStateBus {
         _state.update {
             it.copy(
                 petMode = PetMode.WAVE_POKE,
-                partnerStatusText = "❤️ Напарник машет тебе лапой!",
-                isExpanded = true
+                partnerStatusText = "❤️ Напарник машет тебе лапой!"
             )
         }
         val runnable = Runnable {
             _state.update {
                 it.copy(
-                    isExpanded = false,
                     partnerStatusText = null
                 )
             }
             recalculatePetMode()
         }
         partnerHeartRunnable = runnable
-        handler.postDelayed(runnable, 5000L)
+        handler.postDelayed(runnable, 4000L)
     }
 
     fun triggerPartnerVisit() {
@@ -189,15 +183,13 @@ object IslandStateBus {
             it.copy(
                 hasGuestPet = true,
                 petMode = PetMode.COUPLE_VISIT,
-                partnerStatusText = "🐾 Питомцы тусуются вместе в гостях!",
-                isExpanded = true
+                partnerStatusText = "🐾 Питомцы тусуются вместе в гостях!"
             )
         }
         val runnable = Runnable {
             _state.update {
                 it.copy(
                     hasGuestPet = false,
-                    isExpanded = false,
                     partnerStatusText = null
                 )
             }
@@ -221,23 +213,20 @@ object IslandStateBus {
                 mood = newMood,
                 xp = newXp,
                 petLevel = newLevel,
-                petMode = PetMode.WAVE_POKE,
-                isExpanded = true
+                petMode = PetMode.WAVE_POKE
             )
         }
         val runnable = Runnable {
-            _state.update { it.copy(isExpanded = false) }
             recalculatePetMode()
         }
         pokeRunnable = runnable
-        handler.postDelayed(runnable, 4000L)
+        handler.postDelayed(runnable, 3500L)
     }
 
     fun triggerDoomscrollWarning(warning: String) {
         doomscrollRunnable?.let { handler.removeCallbacks(it) }
         _state.update {
             it.copy(
-                isExpanded = true,
                 petMode = PetMode.DOOMSCROLL,
                 doomscrollWarning = warning
             )
@@ -245,7 +234,6 @@ object IslandStateBus {
         val runnable = Runnable {
             _state.update {
                 it.copy(
-                    isExpanded = false,
                     doomscrollWarning = null
                 )
             }
@@ -259,7 +247,6 @@ object IslandStateBus {
         partnerNoteRunnable?.let { handler.removeCallbacks(it) }
         _state.update {
             it.copy(
-                isExpanded = true,
                 petMode = PetMode.WAVE_POKE,
                 partnerNoteText = "💌 $note (🔋$batteryPct%)"
             )
@@ -267,21 +254,19 @@ object IslandStateBus {
         val runnable = Runnable {
             _state.update {
                 it.copy(
-                    isExpanded = false,
                     partnerNoteText = null
                 )
             }
             recalculatePetMode()
         }
         partnerNoteRunnable = runnable
-        handler.postDelayed(runnable, 7000L)
+        handler.postDelayed(runnable, 5000L)
     }
 
     fun recalculatePetMode() {
         val current = _state.value
         val newMode = when {
             !current.isScreenOn -> PetMode.SLEEP
-            current.isCharging -> PetMode.CHARGING
             current.isMusicPlaying && current.mediaTitle != null -> PetMode.MUSIC
             current.hasGuestPet -> PetMode.COUPLE_VISIT
             else -> PetMode.IDLE
@@ -310,7 +295,6 @@ object IslandStateBus {
 
     fun setCharging(charging: Boolean) {
         _state.update { it.copy(isCharging = charging) }
-        recalculatePetMode()
     }
 
     fun setRoomCode(code: String) {

@@ -211,6 +211,21 @@ class IslandOverlayView(context: Context) : View(context) {
     private var frameIndex = 0
     private val animHandler = Handler(Looper.getMainLooper())
     private var isAnimRunning = false
+    private var autoCollapseRunnable: Runnable? = null
+
+    private fun scheduleAutoCollapse(delayMs: Long = 5000L) {
+        autoCollapseRunnable?.let { animHandler.removeCallbacks(it) }
+        val r = Runnable {
+            IslandStateBus.setExpanded(false)
+        }
+        autoCollapseRunnable = r
+        animHandler.postDelayed(r, delayMs)
+    }
+
+    private fun cancelAutoCollapse() {
+        autoCollapseRunnable?.let { animHandler.removeCallbacks(it) }
+        autoCollapseRunnable = null
+    }
 
     private val animRunnable = object : Runnable {
         override fun run() {
@@ -250,6 +265,7 @@ class IslandOverlayView(context: Context) : View(context) {
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         stopAnimation()
+        cancelAutoCollapse()
         scope.cancel()
     }
 
@@ -313,11 +329,11 @@ class IslandOverlayView(context: Context) : View(context) {
                 val dotX = capsuleRect.left + dp(16f) * state.islandScale
                 val dotY = capsuleRect.centerY()
                 canvas.drawCircle(dotX, dotY, dotRadius, notificationCirclePaint)
-            } else if (state.petMode == PetMode.CHARGING) {
-                val boltX = capsuleRect.left + dp(14f) * state.islandScale
-                val boltY = capsuleRect.centerY() - dp(6f) * state.islandScale
-                renderer.drawBrick(canvas, boltX, boltY, dp(4f) * state.islandScale, Color.parseColor("#00E676"))
-                renderer.drawBrick(canvas, boltX + dp(3f) * state.islandScale, boltY + dp(5f) * state.islandScale, dp(4f) * state.islandScale, Color.parseColor("#FFD700"))
+            } else {
+                val timeStr = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                val clockX = capsuleRect.left + dp(12f) * state.islandScale
+                val clockY = capsuleRect.centerY() - (subWhitePaint.descent() + subWhitePaint.ascent()) / 2f
+                canvas.drawText(timeStr, clockX, clockY, subWhitePaint)
             }
 
             // Правая часть: Питомец из 3D-кубиков конструктора
@@ -364,25 +380,37 @@ class IslandOverlayView(context: Context) : View(context) {
                         isFacingLeft = state.tiltOffsetPx < 0
                         isLyingDown = false
                         isEmittingHearts = false
-                    } else if (state.petMode != PetMode.IDLE) {
+                    } else if (state.petMode == PetMode.SLEEP) {
+                        clampedX = minX
+                        isWalking = false
+                        isFacingLeft = true
+                        isLyingDown = true
+                        isEmittingHearts = false
+                    } else if (state.petMode == PetMode.WAVE_POKE) {
                         clampedX = maxX
                         isWalking = false
                         isFacingLeft = false
-                        isLyingDown = (state.petMode == PetMode.SLEEP)
-                        isEmittingHearts = (state.petMode == PetMode.WAVE_POKE)
+                        isLyingDown = false
+                        isEmittingHearts = true
+                    } else if (state.petMode == PetMode.EATING) {
+                        clampedX = maxX
+                        isWalking = false
+                        isFacingLeft = false
+                        isLyingDown = false
+                        isEmittingHearts = false
                     } else {
-                        // 24-секундный цикл автономной жизни питомца на островке:
-                        // 0..6с: Идет справа налево с переступанием лапок
-                        // 6..11.5с: Уютно лежит калачиком (Loaf) у левого края, отдыхает
-                        // 11.5..13.5с: Просыпается, потягивается и поворачивается направо
-                        // 13.5..19.5с: Идет слева направо с покачиванием
-                        // 19.5..24.0с: Сидит справа, виляет хвостиком и пускает парящие сердечки со звездочками!
-                        val loopMs = 24_000L
+                        // АКТИВНАЯ АВТОНОМНАЯ ЖИЗНЬ НА ОСТРОВКЕ (20 сек полный цикл):
+                        // 0..5с: Идет справа налево через островок (мордочка влево, лапки шагают, хвост виляет)
+                        // 5..10с: Ложится калачиком у левого края (поза Loaf, дышит, сладко дремлет)
+                        // 10..11.5с: Просыпается, потягивается и разворачивается направо
+                        // 11.5..16.5с: Идет слева направо
+                        // 16.5..20с: Сидит справа, виляет хвостом и пускает парящие сердечки со звездочками!
+                        val loopMs = 20_000L
                         val t = ((time % loopMs) / 1000f)
 
                         when {
-                            t < 6.0f -> {
-                                val p = t / 6.0f
+                            t < 5.0f -> {
+                                val p = t / 5.0f
                                 val smoothP = (1f - cos(p * Math.PI.toFloat())) / 2f
                                 clampedX = maxX - (maxX - minX) * smoothP
                                 isWalking = true
@@ -390,22 +418,22 @@ class IslandOverlayView(context: Context) : View(context) {
                                 isLyingDown = false
                                 isEmittingHearts = false
                             }
-                            t < 11.5f -> {
+                            t < 10.0f -> {
                                 clampedX = minX
                                 isWalking = false
                                 isFacingLeft = true
                                 isLyingDown = true
-                                isEmittingHearts = (t > 9.5f)
+                                isEmittingHearts = (t > 8.0f)
                             }
-                            t < 13.5f -> {
+                            t < 11.5f -> {
                                 clampedX = minX
                                 isWalking = false
                                 isFacingLeft = false
                                 isLyingDown = false
                                 isEmittingHearts = false
                             }
-                            t < 19.5f -> {
-                                val p = (t - 13.5f) / 6.0f
+                            t < 16.5f -> {
+                                val p = (t - 11.5f) / 5.0f
                                 val smoothP = (1f - cos(p * Math.PI.toFloat())) / 2f
                                 clampedX = minX + (maxX - minX) * smoothP
                                 isWalking = true
@@ -657,19 +685,23 @@ class IslandOverlayView(context: Context) : View(context) {
             if (!state.isExpanded) {
                 vibrateClick()
                 IslandStateBus.setExpanded(true)
+                scheduleAutoCollapse(5000L)
             } else {
                 when {
                     // Кнопки управления плеером
                     btnPrevRect.contains(event.x, event.y) -> {
                         vibrateClick()
+                        scheduleAutoCollapse(4000L)
                         MediaControlHelper.prevTrack(context)
                     }
                     btnPlayPauseRect.contains(event.x, event.y) -> {
                         vibrateClick()
+                        scheduleAutoCollapse(4000L)
                         MediaControlHelper.playPause(context)
                     }
                     btnNextRect.contains(event.x, event.y) -> {
                         vibrateClick()
+                        scheduleAutoCollapse(4000L)
                         MediaControlHelper.nextTrack(context)
                     }
 
@@ -678,11 +710,13 @@ class IslandOverlayView(context: Context) : View(context) {
                         vibrateClick()
                         IslandStateBus.setIncomingRequest(null)
                         FirebaseCoupleManager.sendPartnerAction("ACCEPT_FRIEND")
+                        scheduleAutoCollapse(2000L)
                     }
                     !state.incomingFriendRequestFrom.isNullOrBlank() && btnDeclineRect.contains(event.x, event.y) -> {
                         vibrateClick()
                         IslandStateBus.setIncomingRequest(null)
                         FirebaseCoupleManager.sendPartnerAction("DECLINE_FRIEND")
+                        scheduleAutoCollapse(2000L)
                     }
 
                     // Нижний ряд кнопок действий
@@ -690,20 +724,25 @@ class IslandOverlayView(context: Context) : View(context) {
                         vibrateClick()
                         IslandStateBus.feedPet()
                         FirebaseCoupleManager.sendPartnerAction("FEED")
+                        scheduleAutoCollapse(2500L)
                     }
                     btnPokeRect.contains(event.x, event.y) -> {
                         vibrateClick()
                         val partnerName = state.partnerUsername.ifBlank { "напарник" }
                         IslandStateBus.triggerPokeWave(partnerName)
                         FirebaseCoupleManager.sendPartnerAction("HEART")
+                        scheduleAutoCollapse(2500L)
                     }
                     btnVisitRect.contains(event.x, event.y) -> {
                         vibrateClick()
                         IslandStateBus.triggerPartnerVisit()
                         FirebaseCoupleManager.sendPartnerAction("VISIT")
+                        scheduleAutoCollapse(2500L)
                     }
                     else -> {
+                        // Тапнули мимо кнопок по карточке -> моментально закрываем!
                         vibrateClick()
+                        cancelAutoCollapse()
                         IslandStateBus.setExpanded(false)
                     }
                 }

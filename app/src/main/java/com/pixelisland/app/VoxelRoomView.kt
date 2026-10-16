@@ -576,12 +576,7 @@ class VoxelRoomView(context: Context) : View(context) {
             val y = event.y
 
             if (petTouchRect.contains(x, y)) {
-                // Тапнули по питомцу -> играем, сыпятся сердечки и запускается WAVE_POKE!
-                spawnToyBurst(x, y)
-                IslandStateBus.playWithPet()
-                return true
-            } else if (!panelRect.contains(x, y)) {
-                // Тапнули по комнате -> салют конфеток и кормим/гладим
+                // Тапнули именно по питомцу -> салют конфеток, вибро и радостная анимация
                 spawnToyBurst(x, y)
                 IslandStateBus.playWithPet()
                 return true
