@@ -20,6 +20,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Интерактивный островок Dynamic Island в стиле уютного 3D-конструктора (Lego Creator).
@@ -339,18 +342,98 @@ class IslandOverlayView(context: Context) : View(context) {
                     renderer.drawPet(canvas, myRect, state.petMode, frameIndex)
                     renderer.drawGuestPet(canvas, guestRect, frameIndex)
                 } else {
-                    val baseMyRight = capsuleRect.right - dp(10f) * state.islandScale
-                    val minX = capsuleRect.left + dp(28f) * state.islandScale
-                    val maxX = capsuleRect.right - dp(6f) * state.islandScale
+                    val time = System.currentTimeMillis()
+                    val isPhysicsActive = state.isHangingOnEdge || abs(state.tiltOffsetPx) >= 8f
 
-                    val clampedX = if (state.isHangingOnEdge) {
-                        if (state.tiltOffsetPx < 0) capsuleRect.left - petSize * 0.25f else capsuleRect.right - petSize * 0.75f
+                    val minX = capsuleRect.left + dp(40f) * state.islandScale
+                    val maxX = (capsuleRect.right - dp(8f) * state.islandScale - petSize).coerceAtLeast(minX)
+
+                    val clampedX: Float
+                    val isWalking: Boolean
+                    val isFacingLeft: Boolean
+                    val isLyingDown: Boolean
+                    val isEmittingHearts: Boolean
+
+                    if (isPhysicsActive) {
+                        clampedX = if (state.isHangingOnEdge) {
+                            if (state.tiltOffsetPx < 0) capsuleRect.left - petSize * 0.25f else capsuleRect.right - petSize * 0.75f
+                        } else {
+                            (maxX + state.tiltOffsetPx).coerceIn(minX, maxX)
+                        }
+                        isWalking = false
+                        isFacingLeft = state.tiltOffsetPx < 0
+                        isLyingDown = false
+                        isEmittingHearts = false
+                    } else if (state.petMode != PetMode.IDLE) {
+                        clampedX = maxX
+                        isWalking = false
+                        isFacingLeft = false
+                        isLyingDown = (state.petMode == PetMode.SLEEP)
+                        isEmittingHearts = (state.petMode == PetMode.WAVE_POKE)
                     } else {
-                        (baseMyRight - petSize + state.tiltOffsetPx).coerceIn(minX, (maxX - petSize).coerceAtLeast(minX))
+                        // 24-секундный цикл автономной жизни питомца на островке:
+                        // 0..6с: Идет справа налево с переступанием лапок
+                        // 6..11.5с: Уютно лежит калачиком (Loaf) у левого края, отдыхает
+                        // 11.5..13.5с: Просыпается, потягивается и поворачивается направо
+                        // 13.5..19.5с: Идет слева направо с покачиванием
+                        // 19.5..24.0с: Сидит справа, виляет хвостиком и пускает парящие сердечки со звездочками!
+                        val loopMs = 24_000L
+                        val t = ((time % loopMs) / 1000f)
+
+                        when {
+                            t < 6.0f -> {
+                                val p = t / 6.0f
+                                val smoothP = (1f - cos(p * Math.PI.toFloat())) / 2f
+                                clampedX = maxX - (maxX - minX) * smoothP
+                                isWalking = true
+                                isFacingLeft = true
+                                isLyingDown = false
+                                isEmittingHearts = false
+                            }
+                            t < 11.5f -> {
+                                clampedX = minX
+                                isWalking = false
+                                isFacingLeft = true
+                                isLyingDown = true
+                                isEmittingHearts = (t > 9.5f)
+                            }
+                            t < 13.5f -> {
+                                clampedX = minX
+                                isWalking = false
+                                isFacingLeft = false
+                                isLyingDown = false
+                                isEmittingHearts = false
+                            }
+                            t < 19.5f -> {
+                                val p = (t - 13.5f) / 6.0f
+                                val smoothP = (1f - cos(p * Math.PI.toFloat())) / 2f
+                                clampedX = minX + (maxX - minX) * smoothP
+                                isWalking = true
+                                isFacingLeft = false
+                                isLyingDown = false
+                                isEmittingHearts = false
+                            }
+                            else -> {
+                                clampedX = maxX
+                                isWalking = false
+                                isFacingLeft = false
+                                isLyingDown = false
+                                isEmittingHearts = true
+                            }
+                        }
                     }
 
                     val myRect = RectF(clampedX, capsuleRect.centerY() - petSize / 2f, clampedX + petSize, capsuleRect.centerY() + petSize / 2f)
-                    renderer.drawPet(canvas, myRect, state.petMode, frameIndex)
+                    renderer.drawPet(
+                        canvas = canvas,
+                        dstRect = myRect,
+                        mode = state.petMode,
+                        frameIndex = frameIndex,
+                        isWalking = isWalking,
+                        isFacingLeft = isFacingLeft,
+                        isLyingDown = isLyingDown,
+                        isEmittingHearts = isEmittingHearts
+                    )
                 }
             }
         } else {
@@ -382,7 +465,9 @@ class IslandOverlayView(context: Context) : View(context) {
             val petSize = dp(56f)
             val petTop = capsuleRect.top + dp(14f)
             val myPetRect = RectF(capsuleRect.left + dp(14f), petTop, capsuleRect.left + dp(14f) + petSize, petTop + petSize)
-            renderer.drawPet(canvas, myPetRect, state.petMode, frameIndex)
+            val timeExpanded = System.currentTimeMillis()
+            val isExpandedHearts = (state.petMode == PetMode.WAVE_POKE) || (state.petMode == PetMode.IDLE && ((timeExpanded / 2500L) % 2L == 0L))
+            renderer.drawPet(canvas, myPetRect, state.petMode, frameIndex, isEmittingHearts = isExpandedHearts)
 
             var textStartX = myPetRect.right + dp(12f)
             if (state.hasGuestPet) {

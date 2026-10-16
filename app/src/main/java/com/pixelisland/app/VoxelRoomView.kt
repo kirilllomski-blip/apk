@@ -194,14 +194,91 @@ class VoxelRoomView(context: Context) : View(context) {
         // 2. ДЕКОР И ИНТЕРЬЕР ИЗ КУБИКОВ (Окно, цветок, диванчик, миска)
         drawCozyFurniture(canvas, w, h, state, time)
 
-        // 3. ЖИВОЙ ПИТОМЕЦ ПО ЦЕНТРУ КОМНАТЫ
+        // 3. ЖИВОЙ ПИТОМЕЦ: ХОДИТ ПО КОМНАТЕ, ЛЕЖИТ КАЛАЧИКОМ И ПУСКАЕТ СЕРДЕЧКИ
         val petW = dp(116f)
         val petH = dp(116f)
-        val petX = (w - petW) / 2f
         val petY = h - dp(142f)
-        petTouchRect.set(petX, petY, petX + petW, petY + petH)
 
-        renderer.drawPet(canvas, petTouchRect, state.petMode, frameIndex)
+        val minRoomX = dp(32f)
+        val maxRoomX = (w - petW - dp(32f)).coerceAtLeast(minRoomX)
+        val centerRoomX = (w - petW) / 2f
+
+        val petX: Float
+        val isWalking: Boolean
+        val isFacingLeft: Boolean
+        val isLyingDown: Boolean
+        val isEmittingHearts: Boolean
+
+        if (state.petMode != PetMode.IDLE) {
+            petX = centerRoomX
+            isWalking = false
+            isFacingLeft = false
+            isLyingDown = (state.petMode == PetMode.SLEEP)
+            isEmittingHearts = (state.petMode == PetMode.WAVE_POKE)
+        } else {
+            // Автономный цикл жизни в комнате (28 секунд):
+            // 0..7с: Идет от центра влево (к креслу и цветку)
+            // 7..14с: Уютно лежит калачиком у цветка, дремлет
+            // 14..16с: Просыпается, потягивается и поворачивается направо
+            // 16..23с: Идет направо к миске с едой
+            // 23..28с: Сидит около миски, довольно виляет хвостом и пускает парящие сердечки!
+            val loopMs = 28_000L
+            val t = ((time % loopMs) / 1000f)
+
+            when {
+                t < 7.0f -> {
+                    val p = t / 7.0f
+                    val smoothP = (1f - cos(p * Math.PI.toFloat())) / 2f
+                    petX = centerRoomX - (centerRoomX - minRoomX) * smoothP
+                    isWalking = true
+                    isFacingLeft = true
+                    isLyingDown = false
+                    isEmittingHearts = false
+                }
+                t < 14.0f -> {
+                    petX = minRoomX
+                    isWalking = false
+                    isFacingLeft = true
+                    isLyingDown = true
+                    isEmittingHearts = (t > 11.5f)
+                }
+                t < 16.0f -> {
+                    petX = minRoomX
+                    isWalking = false
+                    isFacingLeft = false
+                    isLyingDown = false
+                    isEmittingHearts = false
+                }
+                t < 23.0f -> {
+                    val p = (t - 16.0f) / 7.0f
+                    val smoothP = (1f - cos(p * Math.PI.toFloat())) / 2f
+                    petX = minRoomX + (maxRoomX - minRoomX) * smoothP
+                    isWalking = true
+                    isFacingLeft = false
+                    isLyingDown = false
+                    isEmittingHearts = false
+                }
+                else -> {
+                    petX = maxRoomX
+                    isWalking = false
+                    isFacingLeft = false
+                    isLyingDown = false
+                    isEmittingHearts = true
+                }
+            }
+        }
+
+        petTouchRect.set(petX, petY, petX + petW, petY + petH)
+        renderer.drawPet(
+            canvas = canvas,
+            dstRect = petTouchRect,
+            mode = state.petMode,
+            frameIndex = frameIndex,
+            isWalking = isWalking,
+            isFacingLeft = isFacingLeft,
+            isLyingDown = isLyingDown,
+            isEmittingHearts = isEmittingHearts
+        )
 
         // 4. ЧАСТИЦЫ ОТ ТАПОВ
         drawToyParticles(canvas)

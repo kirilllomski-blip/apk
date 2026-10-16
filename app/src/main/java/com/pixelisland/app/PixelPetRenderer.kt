@@ -178,7 +178,21 @@ class PixelPetRenderer(private val context: Context) {
      * Главная точка входа отрисовки питомца:
      * Выбирает Кот / Собачка, рисует анимацию соответствующего режима PetMode.
      */
-    fun drawPet(canvas: Canvas, dstRect: RectF, mode: PetMode, frameIndex: Int) {
+    /**
+     * Главная точка входа отрисовки питомца:
+     * Выбирает Кот / Собачка, рисует анимацию соответствующего режима PetMode,
+     * а также поддерживает ходьбу, поворот влево, уютное лежание калачиком и парящие сердечки!
+     */
+    fun drawPet(
+        canvas: Canvas,
+        dstRect: RectF,
+        mode: PetMode,
+        frameIndex: Int,
+        isWalking: Boolean = false,
+        isFacingLeft: Boolean = false,
+        isLyingDown: Boolean = false,
+        isEmittingHearts: Boolean = false
+    ) {
         val state = IslandStateBus.state.value
         reloadCustomPetIfNeeded(state.customPetVersion)
 
@@ -209,16 +223,26 @@ class PixelPetRenderer(private val context: Context) {
             return
         }
 
+        // Поворот в сторону движения (зеркально отражаем при ходьбе влево)
+        if (isFacingLeft && !state.isHangingOnEdge) {
+            canvas.scale(-1f, 1f, dstRect.centerX(), dstRect.centerY())
+        }
+
         // 3. ОБЫЧНЫЙ ОДИНОЧНЫЙ ПИТОМЕЦ
         val bSize = dstRect.width() / 14f
         var startX = dstRect.left + dstRect.width() * 0.12f
         var startY = dstRect.top + dstRect.height() * 0.08f
 
-        // Анимации вертикального смещения (дыхание, бит музыки, прыжок)
+        // Анимации вертикального смещения (шаги, дыхание, бит музыки, прыжок)
         when (mode) {
             PetMode.IDLE -> {
-                val breathY = sin(timeSec * 3f) * (bSize * 0.4f)
-                startY += breathY
+                if (isWalking) {
+                    val walkBob = abs(sin(timeSec * 14f)) * (bSize * 0.35f)
+                    startY += walkBob
+                } else if (!isLyingDown) {
+                    val breathY = sin(timeSec * 3f) * (bSize * 0.4f)
+                    startY += breathY
+                }
             }
             PetMode.MUSIC -> {
                 val beatY = abs(sin(timeSec * 6.5f)) * (bSize * 1.2f)
@@ -242,8 +266,12 @@ class PixelPetRenderer(private val context: Context) {
             else -> {}
         }
 
-        // Рисуем базовую модельку зверька (Кот или Собака)
-        drawVoxelAnimalModel(canvas, startX, startY, bSize, state.species, mode, time)
+        // Рисуем базовую модельку зверька: либо лежащий калачиком (Loaf), либо стоящий/шагающий
+        if (isLyingDown || mode == PetMode.SLEEP) {
+            drawLyingDownAnimalModel(canvas, startX, startY, bSize, state.species, mode, time)
+        } else {
+            drawVoxelAnimalModel(canvas, startX, startY, bSize, state.species, mode, time, isWalking)
+        }
 
         // Рисуем специфические накладки режима
         when (mode) {
@@ -272,12 +300,17 @@ class PixelPetRenderer(private val context: Context) {
         }
 
         canvas.restore()
+
+        // 4. ПЛАВАЮЩИЕ СЕРДЕЧКИ И ЗВЕЗДОЧКИ (рисуем поверх без зеркального отражения)
+        if (isEmittingHearts) {
+            drawFloatingHearts(canvas, dstRect.centerX(), dstRect.top + bSize * 2f, bSize, time)
+        }
     }
 
     fun getFrameDelayMs(mode: PetMode = PetMode.IDLE): Long {
         return when (mode) {
-            PetMode.IDLE -> 80L
-            PetMode.SLEEP -> 120L
+            PetMode.IDLE -> 50L
+            PetMode.SLEEP -> 90L
             PetMode.MUSIC -> 50L
             PetMode.CHARGING -> 60L
             PetMode.NOTIFICATION -> 70L
@@ -294,11 +327,11 @@ class PixelPetRenderer(private val context: Context) {
         val bSize = dstRect.width() / 14f
         val startX = dstRect.left + dstRect.width() * 0.12f
         val startY = dstRect.top + dstRect.height() * 0.08f
-        drawVoxelAnimalModel(canvas, startX, startY, bSize, guestSpecies, PetMode.IDLE, System.currentTimeMillis())
+        drawVoxelAnimalModel(canvas, startX, startY, bSize, guestSpecies, PetMode.IDLE, System.currentTimeMillis(), isWalking = false)
     }
 
     /**
-     * Отрисовка самого зверька из 3D кубиков (Кот или Собачка Сиба-ину).
+     * Отрисовка стоящего или шагающего зверька из 3D кубиков (Кот или Собачка Сиба-ину).
      */
     private fun drawVoxelAnimalModel(
         canvas: Canvas,
@@ -307,7 +340,8 @@ class PixelPetRenderer(private val context: Context) {
         bSize: Float,
         species: PetSpecies,
         mode: PetMode,
-        time: Long
+        time: Long,
+        isWalking: Boolean = false
     ) {
         val timeSec = time * 0.001f
         val isDog = (species == PetSpecies.DOG)
@@ -321,13 +355,16 @@ class PixelPetRenderer(private val context: Context) {
         // 1. ХВОСТ (Сзади)
         if (isDog) {
             // У собаки Сиба-Ину хвостик закручен бубликом на спинке и быстро виляет
-            val tailWag = sin(timeSec * 12f) * (bSize * 0.35f)
+            val tailSpeed = if (isWalking) 16f else 12f
+            val tailAmp = if (isWalking) 0.55f else 0.35f
+            val tailWag = sin(timeSec * tailSpeed) * (bSize * tailAmp)
             drawBrick(canvas, x + bSize * 8.5f + tailWag, y + bSize * 5.2f, bSize * 1.1f, cDark)
             drawBrick(canvas, x + bSize * 9.2f + tailWag, y + bSize * 4.2f, bSize * 1.1f, cMain)
             drawBrick(canvas, x + bSize * 8.6f + tailWag, y + bSize * 3.4f, bSize * 1.0f, cWhite)
         } else {
             // У Кота длинный пушистый хвост, плавно покачивается
-            val tailSwish = sin(timeSec * 4f) * (bSize * 0.5f)
+            val catTailSpeed = if (isWalking) 10f else 4f
+            val tailSwish = sin(timeSec * catTailSpeed) * (bSize * 0.5f)
             drawBrick(canvas, x + bSize * 8.5f, y + bSize * 6.5f, bSize * 1.1f, cDark)
             drawBrick(canvas, x + bSize * 9.4f, y + bSize * 5.5f, bSize * 1.1f, cMain)
             drawBrick(canvas, x + bSize * 9.8f + tailSwish, y + bSize * 4.4f, bSize * 1.1f, cDark)
@@ -335,9 +372,14 @@ class PixelPetRenderer(private val context: Context) {
         }
 
         // 2. ТЕЛО (Спина, бока, пузико)
-        // Нижняя часть тела / задние лапки
-        drawBrick(canvas, x + bSize * 2.2f, y + bSize * 6.6f, bSize * 1.2f, cWhite) // Левая задняя
-        drawBrick(canvas, x + bSize * 7.0f, y + bSize * 6.6f, bSize * 1.2f, cWhite) // Правая задняя
+        // Задние лапки: при ходьбе попеременно переступают
+        val stepBL = if (isWalking) sin(timeSec * 14f) * (bSize * 0.6f) else 0f
+        val liftBL = if (isWalking) abs(sin(timeSec * 14f)) * (bSize * 0.3f) else 0f
+        val stepBR = -stepBL
+        val liftBR = if (isWalking) abs(sin(timeSec * 14f + Math.PI.toFloat())) * (bSize * 0.3f) else 0f
+
+        drawBrick(canvas, x + bSize * 2.2f - stepBL * 0.3f, y + bSize * 6.6f - liftBL, bSize * 1.2f, cWhite) // Левая задняя
+        drawBrick(canvas, x + bSize * 7.0f - stepBR * 0.3f, y + bSize * 6.6f - liftBR, bSize * 1.2f, cWhite) // Правая задняя
         drawBrick(canvas, x + bSize * 3.2f, y + bSize * 5.8f, bSize * 1.3f, cMain)  // Животик
         drawBrick(canvas, x + bSize * 4.5f, y + bSize * 5.8f, bSize * 1.3f, cWhite) // Белое пузико
         drawBrick(canvas, x + bSize * 5.8f, y + bSize * 5.8f, bSize * 1.3f, cMain)
@@ -375,7 +417,6 @@ class PixelPetRenderer(private val context: Context) {
         }
 
         // Щечки и глазки
-        // Щечки
         drawBrick(canvas, x + bSize * 2.2f, y + bSize * 2.3f, bSize * 1.3f, if (isDog) cWhite else cMain)
         drawBrick(canvas, x + bSize * 6.8f, y + bSize * 2.3f, bSize * 1.3f, if (isDog) cWhite else cMain)
 
@@ -429,10 +470,138 @@ class PixelPetRenderer(private val context: Context) {
             val waveOffset = sin(timeSec * 14f) * (bSize * 0.8f)
             drawBrick(canvas, x + bSize * 6.8f + waveOffset, y + bSize * 3.6f, bSize * 1.2f, cMain)
             drawBrick(canvas, x + bSize * 7.4f + waveOffset, y + bSize * 2.7f, bSize * 1.1f, cWhite) // Белая ладошка
+        } else if (isWalking) {
+            // При ходьбе: передние лапки ритмично вышагивают вперед и назад
+            val stepFL = sin(timeSec * 14f) * (bSize * 0.8f)
+            val liftFL = abs(stepFL) * 0.45f
+            val stepFR = -stepFL
+            val liftFR = abs(stepFR) * 0.45f
+
+            drawBrick(canvas, x + bSize * 3.2f + stepFL * 0.5f, y + bSize * 6.6f - liftFL, bSize * 1.2f, cWhite)
+            drawBrick(canvas, x + bSize * 5.8f + stepFR * 0.5f, y + bSize * 6.6f - liftFR, bSize * 1.2f, cWhite)
         } else {
             // Обе лапки аккуратно сидят впереди
             drawBrick(canvas, x + bSize * 3.2f, y + bSize * 6.6f, bSize * 1.2f, cWhite)
             drawBrick(canvas, x + bSize * 5.8f, y + bSize * 6.6f, bSize * 1.2f, cWhite)
+        }
+    }
+
+    /**
+     * Отрисовка уютно лежащего питомца ("буханочка" / Loaf pose):
+     * Тело прижато к полу, лапки поджаты, глаза спокойно прикрыты, мягкое дыхание.
+     */
+    private fun drawLyingDownAnimalModel(
+        canvas: Canvas,
+        x: Float,
+        y: Float,
+        bSize: Float,
+        species: PetSpecies,
+        mode: PetMode,
+        time: Long
+    ) {
+        val timeSec = time * 0.001f
+        val isDog = (species == PetSpecies.DOG)
+
+        val cMain = if (isDog) C_DOG_HONEY else C_CAT_GINGER
+        val cDark = if (isDog) C_DOG_TAN_DARK else C_CAT_GINGER_DARK
+        val cWhite = C_CAT_WHITE
+        val cPink = C_CAT_PINK
+        val collarColor = if (isDog) C_COLLAR_RED else C_COLLAR_TEAL
+
+        // Мягкое мерное дыхание
+        val breathe = sin(timeSec * 2.5f) * (bSize * 0.25f)
+        val lieY = y + bSize * 1.2f + breathe
+
+        // 1. Хвостик
+        if (isDog) {
+            drawBrick(canvas, x + bSize * 0.8f, lieY + bSize * 3.8f, bSize * 1.1f, cDark)
+            drawBrick(canvas, x + bSize * 0.4f, lieY + bSize * 2.9f, bSize * 1.0f, cWhite)
+        } else {
+            // У кота хвостик свернут вдоль тела
+            drawBrick(canvas, x + bSize * 0.6f, lieY + bSize * 4.6f, bSize * 1.1f, cDark)
+            drawBrick(canvas, x + bSize * 1.4f, lieY + bSize * 5.6f, bSize * 1.1f, cMain)
+            drawBrick(canvas, x + bSize * 2.6f, lieY + bSize * 6.2f, bSize * 1.0f, cWhite)
+        }
+
+        // 2. Тело калачиком (Loaf)
+        // Нижний ряд спинки и бока
+        drawBrick(canvas, x + bSize * 1.8f, lieY + bSize * 4.8f, bSize * 1.3f, cDark)
+        drawBrick(canvas, x + bSize * 3.1f, lieY + bSize * 4.8f, bSize * 1.3f, cMain)
+        drawBrick(canvas, x + bSize * 4.4f, lieY + bSize * 4.8f, bSize * 1.3f, cWhite) // Белый животик
+        drawBrick(canvas, x + bSize * 5.7f, lieY + bSize * 4.8f, bSize * 1.3f, cMain)
+        drawBrick(canvas, x + bSize * 7.0f, lieY + bSize * 4.8f, bSize * 1.3f, cDark)
+
+        // Верхний хребет
+        drawBrick(canvas, x + bSize * 2.4f, lieY + bSize * 3.6f, bSize * 1.3f, cMain)
+        drawBrick(canvas, x + bSize * 3.7f, lieY + bSize * 3.6f, bSize * 1.3f, cWhite)
+        drawBrick(canvas, x + bSize * 5.0f, lieY + bSize * 3.6f, bSize * 1.3f, cMain)
+
+        // 3. Поджатые лапки на полу
+        drawBrick(canvas, x + bSize * 3.8f, lieY + bSize * 6.0f, bSize * 1.2f, cWhite)
+        drawBrick(canvas, x + bSize * 5.4f, lieY + bSize * 6.0f, bSize * 1.2f, cWhite)
+
+        // 4. Ошейник с кулоном
+        drawBrick(canvas, x + bSize * 6.2f, lieY + bSize * 3.5f, bSize * 1.1f, collarColor)
+        drawBrick(canvas, x + bSize * 7.1f, lieY + bSize * 3.6f, bSize * 0.95f, C_BELL_GOLD)
+
+        // 5. Голова, уютно лежащая на лапках
+        // Лоб
+        drawBrick(canvas, x + bSize * 5.8f, lieY + bSize * 1.2f, bSize * 1.3f, cMain)
+        drawBrick(canvas, x + bSize * 7.1f, lieY + bSize * 1.2f, bSize * 1.3f, if (isDog) cWhite else cDark)
+        drawBrick(canvas, x + bSize * 8.4f, lieY + bSize * 1.2f, bSize * 1.3f, cMain)
+
+        // Ушки
+        if (isDog) {
+            drawBrick(canvas, x + bSize * 5.2f, lieY + bSize * 0.2f, bSize * 1.1f, cDark)
+            drawBrick(canvas, x + bSize * 6.2f, lieY + bSize * 0.3f, bSize * 0.9f, cWhite)
+            drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 0.2f, bSize * 1.1f, cDark)
+        } else {
+            drawBrick(canvas, x + bSize * 5.2f, lieY + bSize * 0.1f, bSize * 1.1f, cDark)
+            drawBrick(canvas, x + bSize * 6.0f, lieY + bSize * 0.4f, bSize * 0.9f, cPink)
+            drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 0.1f, bSize * 1.1f, cDark)
+            drawBrick(canvas, x + bSize * 7.9f, lieY + bSize * 0.4f, bSize * 0.9f, cPink)
+        }
+
+        // Щечки
+        drawBrick(canvas, x + bSize * 5.6f, lieY + bSize * 2.3f, bSize * 1.3f, if (isDog) cWhite else cMain)
+        drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 2.3f, bSize * 1.3f, if (isDog) cWhite else cMain)
+
+        // Закрытые глазки блаженства (^ ^ или сон - -)
+        drawBrick(canvas, x + bSize * 6.7f, lieY + bSize * 2.2f, bSize * 1.0f, C_CAT_EYE)
+        drawBrick(canvas, x + bSize * 8.0f, lieY + bSize * 2.2f, bSize * 1.0f, C_CAT_EYE)
+
+        // Розовый румянец на щечках
+        drawBrick(canvas, x + bSize * 5.8f, lieY + bSize * 3.1f, bSize * 0.85f, cPink)
+        drawBrick(canvas, x + bSize * 8.6f, lieY + bSize * 3.1f, bSize * 0.85f, cPink)
+
+        // Мордочка и носик
+        drawBrick(canvas, x + bSize * 7.1f, lieY + bSize * 2.8f, bSize * 1.0f, cWhite)
+        drawBrick(canvas, x + bSize * 7.9f, lieY + bSize * 2.8f, bSize * 1.0f, cWhite)
+        drawBrick(canvas, x + bSize * 7.4f, lieY + bSize * 2.6f, bSize * 0.9f, if (isDog) C_DOG_NOSE else cPink)
+    }
+
+    /**
+     * Парящие в воздухе сердечки (❤️) и мерцающие золотые звездочки (✨).
+     */
+    fun drawFloatingHearts(canvas: Canvas, cx: Float, topY: Float, bSize: Float, time: Long) {
+        val timeSec = time * 0.001f
+        for (i in 0..2) {
+            val p = ((timeSec * 0.7f + i * 0.33f) % 1.0f)
+            val riseY = topY - p * (bSize * 6.5f)
+            val driftX = sin(p * 5.0f + i * 2.1f) * (bSize * 1.6f) + (i - 1) * bSize * 1.3f
+            val px = cx + driftX
+
+            val alpha = ((1.0f - p) * 255).toInt().coerceIn(0, 255)
+            textPaint.alpha = alpha
+            textPaint.textSize = bSize * (1.8f + p * 0.4f)
+
+            if (i % 2 == 0) {
+                textPaint.color = C_HEART_RED
+                canvas.drawText("❤️", px, riseY, textPaint)
+            } else {
+                textPaint.color = C_STAR_GOLD
+                canvas.drawText("✨", px, riseY, textPaint)
+            }
         }
     }
 
