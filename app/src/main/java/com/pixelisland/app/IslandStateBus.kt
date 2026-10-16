@@ -61,7 +61,9 @@ data class IslandState(
     val batteryLevel: Int = 100,
     val stepsToday: Int = 1240,
     val stepsGoal: Int = 5000,
-    val coins: Int = 120
+    val coins: Int = 120,
+    val forceSunglasses: Boolean = false,
+    val forceNightcap: Boolean = false
 )
 
 object IslandStateBus {
@@ -269,6 +271,14 @@ object IslandStateBus {
                 current.copy(stepsToday = newSteps)
             }
         }
+    }
+
+    fun toggleSunglasses() {
+        _state.update { it.copy(forceSunglasses = !it.forceSunglasses, forceNightcap = false) }
+    }
+
+    fun toggleNightcap() {
+        _state.update { it.copy(forceNightcap = !it.forceNightcap, forceSunglasses = false) }
     }
 
     fun triggerDoomscrollWarning(warning: String) {

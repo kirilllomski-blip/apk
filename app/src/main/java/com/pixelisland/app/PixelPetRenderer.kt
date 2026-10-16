@@ -300,6 +300,18 @@ class PixelPetRenderer(private val context: Context) {
             else -> {}
         }
 
+        // 4. Аксессуары времени суток (день / ночь):
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val isSleepingOrLoaf = isLyingDown || mode == PetMode.SLEEP
+        val showNightcap = state.forceNightcap || ((hour >= 22 || hour < 7) && isSleepingOrLoaf)
+        val showSunglasses = state.forceSunglasses || (hour in 9..19 && mode == PetMode.IDLE && !isLyingDown && !hasBallInMouth)
+
+        if (showNightcap) {
+            drawNightCap(canvas, startX, startY, bSize, isSleepingOrLoaf)
+        } else if (showSunglasses) {
+            drawSunglasses(canvas, startX, startY, bSize)
+        }
+
         canvas.restore()
 
         // 4. ПЛАВАЮЩИЕ СЕРДЕЧКИ И ЗВЕЗДОЧКИ (рисуем поверх без зеркального отражения)
@@ -816,6 +828,41 @@ class PixelPetRenderer(private val context: Context) {
             textPaint.alpha = ((1f - p) * 255).toInt().coerceIn(0, 255)
             canvas.drawText("Z", zx, zy, textPaint)
         }
+    }
+
+    /**
+     * Ночной синий колпак для уютного сна калачиком (после 22:00 или в режиме сна)
+     */
+    private fun drawNightCap(canvas: Canvas, x: Float, y: Float, bSize: Float, isLying: Boolean) {
+        val capColor = Color.parseColor("#4F46E5")
+        val capAccent = Color.parseColor("#818CF8")
+        val pompomColor = Color.parseColor("#FACC15")
+
+        if (isLying) {
+            drawBrick(canvas, x + bSize * 4.6f, y - bSize * 0.4f, bSize * 1.6f, capColor)
+            drawBrick(canvas, x + bSize * 3.8f, y - bSize * 1.3f, bSize * 1.3f, capAccent)
+            drawBrick(canvas, x + bSize * 2.8f, y - bSize * 1.8f, bSize * 1.1f, pompomColor)
+        } else {
+            drawBrick(canvas, x + bSize * 4.2f, y - bSize * 0.8f, bSize * 1.8f, capColor)
+            drawBrick(canvas, x + bSize * 3.2f, y - bSize * 1.8f, bSize * 1.4f, capAccent)
+            drawBrick(canvas, x + bSize * 2.2f, y - bSize * 2.4f, bSize * 1.1f, pompomColor)
+        }
+    }
+
+    /**
+     * Стильные темные очки для солнечных дневных прогулок
+     */
+    private fun drawSunglasses(canvas: Canvas, x: Float, y: Float, bSize: Float) {
+        val frameColor = Color.parseColor("#18181B")
+        val lensShine = Color.parseColor("#38BDF8")
+
+        drawBrick(canvas, x + bSize * 2.6f, y + bSize * 1.3f, bSize * 1.6f, frameColor)
+        drawBrick(canvas, x + bSize * 3.0f, y + bSize * 1.5f, bSize * 0.6f, lensShine)
+
+        drawBrick(canvas, x + bSize * 4.2f, y + bSize * 1.6f, bSize * 1.0f, frameColor)
+
+        drawBrick(canvas, x + bSize * 5.2f, y + bSize * 1.3f, bSize * 1.6f, frameColor)
+        drawBrick(canvas, x + bSize * 5.6f, y + bSize * 1.5f, bSize * 0.6f, lensShine)
     }
 
     private fun drawCustomAsset(canvas: Canvas, dstRect: RectF, mode: PetMode, frameIndex: Int, state: IslandState) {

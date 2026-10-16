@@ -491,6 +491,23 @@ class MainActivity : Activity() {
                 Toast.makeText(context, "🐾 Питомец радуется и машет лапкой!", Toast.LENGTH_SHORT).show()
             })
             addView(row4)
+
+            // Строка 5: Аксессуары времени суток
+            val row5 = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(3), 0, dp(3))
+            }
+            row5.addView(createSmallTestButton("🕶️ Очки", C_BRICK_DARK, 1f) {
+                vibrateQuick()
+                IslandStateBus.toggleSunglasses()
+                Toast.makeText(context, "🕶️ Темные очки переключены!", Toast.LENGTH_SHORT).show()
+            })
+            row5.addView(createSmallTestButton("🌙 Колпак Zzz", C_BRICK_INDIGO, 1f) {
+                vibrateQuick()
+                IslandStateBus.toggleNightcap()
+                Toast.makeText(context, "🌙 Ночной колпак со звездочкой переключен!", Toast.LENGTH_SHORT).show()
+            })
+            addView(row5)
         }
         container.addView(testCard)
     }
