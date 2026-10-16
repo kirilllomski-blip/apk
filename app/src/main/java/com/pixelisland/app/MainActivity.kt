@@ -816,7 +816,7 @@ class MainActivity : Activity() {
             val heartsCount = (state.mood / 20).coerceIn(1, 5)
             val heartsStr = "❤️".repeat(heartsCount)
             val statsInfo = TextView(context).apply {
-                text = "⭐ Уровень: ${state.petLevel}  •  XP: ${state.petXp}/100  •  $heartsStr\n🍖 Сытость: ${state.hunger}%  •  ⚡ Бодрость: ${state.energy}%  •  💖 Настроение: ${state.mood}%"
+                text = "⭐ Уровень: ${state.petLevel}  •  XP: ${state.xp}/100  •  $heartsStr\n🍖 Сытость: ${state.hunger}%  •  ⚡ Бодрость: ${state.energy}%  •  💖 Настроение: ${state.mood}%"
                 setTextColor(C_BRICK_AMBER)
                 textSize = 12f
                 typeface = Typeface.DEFAULT_BOLD
