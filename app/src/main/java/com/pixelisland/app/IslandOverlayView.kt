@@ -208,6 +208,79 @@ class IslandOverlayView(context: Context) : View(context) {
     private val eqPaint2 = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#00E676") }
     private val eqPaint3 = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FF1744") }
 
+    // ==================== МИНИ-ИГРА В МЯЧИК (FETCH MINI-GAME) ====================
+    private enum class FetchPhase {
+        IDLE,
+        BALL_FLYING,
+        PET_CHASING,
+        PET_RETURNING,
+        CELEBRATING
+    }
+
+    private var fetchPhase = FetchPhase.IDLE
+    private var fetchStartTime = 0L
+    private var celebrateStartTime = 0L
+
+    private var ballStartX = 0f
+    private var ballStartY = 0f
+    private var ballTargetX = 0f
+    private var ballTargetY = 0f
+    private var ballCurrentX = 0f
+    private var ballCurrentY = 0f
+    private var ballRotation = 0f
+
+    private var petFetchStartX = 0f
+    private var petFetchTargetX = 0f
+    private var petFetchCurrentX = 0f
+    private var xpToastText: String? = null
+
+    private var downX = 0f
+    private var downY = 0f
+    private var downTime = 0L
+
+    private val xpBadgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#FFD700")
+        textSize = 10f * scaledDensity
+        isFakeBoldText = true
+        textAlign = Paint.Align.CENTER
+    }
+
+    private val xpBadgeBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#2B2100")
+        style = Paint.Style.FILL
+    }
+
+    private val xpBadgeBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#FFD700")
+        style = Paint.Style.STROKE
+        strokeWidth = 1f * density
+    }
+
+    private fun startFetchGame(throwRight: Boolean) {
+        val state = IslandStateBus.state.value
+        val petSize = dp(28f) * state.islandScale
+        val minX = capsuleRect.left + dp(40f) * state.islandScale
+        val maxX = (capsuleRect.right - dp(8f) * state.islandScale - petSize).coerceAtLeast(minX)
+
+        val currentPetX = petFetchCurrentX.coerceIn(minX, maxX)
+        ballStartX = currentPetX + petSize / 2f
+        ballStartY = capsuleRect.centerY()
+
+        if (throwRight) {
+            ballTargetX = (capsuleRect.right - dp(18f) * state.islandScale).coerceAtLeast(minX + dp(14f))
+        } else {
+            ballTargetX = capsuleRect.left + dp(22f) * state.islandScale
+        }
+        ballTargetY = capsuleRect.centerY() + dp(4f) * state.islandScale
+
+        petFetchStartX = currentPetX
+        fetchStartTime = System.currentTimeMillis()
+        fetchPhase = FetchPhase.BALL_FLYING
+        xpToastText = null
+        vibrateClick()
+        invalidate()
+    }
+
     private var frameIndex = 0
     private val animHandler = Handler(Looper.getMainLooper())
     private var isAnimRunning = false
@@ -369,8 +442,105 @@ class IslandOverlayView(context: Context) : View(context) {
                     val isFacingLeft: Boolean
                     val isLyingDown: Boolean
                     val isEmittingHearts: Boolean
+                    var isSprinting = false
+                    var hasBallInMouth = false
 
-                    if (isPhysicsActive) {
+                    if (fetchPhase != FetchPhase.IDLE) {
+                        isLyingDown = false
+                        when (fetchPhase) {
+                            FetchPhase.BALL_FLYING -> {
+                                val elapsed = ((time - fetchStartTime) / 550f).coerceIn(0f, 1f)
+                                ballCurrentX = ballStartX + (ballTargetX - ballStartX) * elapsed
+                                val arc = sin(elapsed * Math.PI.toFloat()) * dp(12f) * state.islandScale
+                                ballCurrentY = ballStartY + (ballTargetY - ballStartY) * elapsed - arc
+                                ballRotation = elapsed * 720f
+
+                                clampedX = petFetchStartX
+                                isWalking = false
+                                isSprinting = false
+                                isFacingLeft = (ballTargetX < clampedX)
+                                hasBallInMouth = false
+                                isEmittingHearts = false
+
+                                if (elapsed >= 1f) {
+                                    fetchPhase = FetchPhase.PET_CHASING
+                                    fetchStartTime = time
+                                    petFetchStartX = clampedX
+                                    petFetchTargetX = if (ballTargetX > petFetchStartX) {
+                                        (ballTargetX - petSize * 0.7f).coerceIn(minX, maxX)
+                                    } else {
+                                        (ballTargetX - petSize * 0.15f).coerceIn(minX, maxX)
+                                    }
+                                }
+                            }
+                            FetchPhase.PET_CHASING -> {
+                                val elapsed = ((time - fetchStartTime) / 750f).coerceIn(0f, 1f)
+                                val smoothP = (1f - cos(elapsed * Math.PI.toFloat())) / 2f
+                                clampedX = petFetchStartX + (petFetchTargetX - petFetchStartX) * smoothP
+                                isWalking = true
+                                isSprinting = true
+                                isFacingLeft = (petFetchTargetX < petFetchStartX)
+                                hasBallInMouth = false
+                                isEmittingHearts = false
+
+                                ballCurrentX = ballTargetX
+                                ballCurrentY = ballTargetY
+
+                                if (elapsed >= 1f) {
+                                    fetchPhase = FetchPhase.PET_RETURNING
+                                    fetchStartTime = time
+                                    hasBallInMouth = true
+                                    petFetchStartX = clampedX
+                                    petFetchTargetX = maxX
+                                }
+                            }
+                            FetchPhase.PET_RETURNING -> {
+                                val elapsed = ((time - fetchStartTime) / 900f).coerceIn(0f, 1f)
+                                val smoothP = (1f - cos(elapsed * Math.PI.toFloat())) / 2f
+                                clampedX = petFetchStartX + (petFetchTargetX - petFetchStartX) * smoothP
+                                isWalking = true
+                                isSprinting = true
+                                isFacingLeft = (petFetchTargetX < petFetchStartX)
+                                hasBallInMouth = true
+                                isEmittingHearts = false
+
+                                if (elapsed >= 1f) {
+                                    fetchPhase = FetchPhase.CELEBRATING
+                                    celebrateStartTime = time
+                                    hasBallInMouth = false
+                                    isSprinting = false
+                                    isWalking = false
+                                    isFacingLeft = false
+                                    ballCurrentX = (clampedX - dp(10f) * state.islandScale).coerceAtLeast(capsuleRect.left + dp(14f))
+                                    ballCurrentY = capsuleRect.centerY() + dp(4f) * state.islandScale
+                                    IslandStateBus.addXpAndMood(20, 15)
+                                    xpToastText = "+20 XP ✨"
+                                    vibrateClick()
+                                }
+                            }
+                            FetchPhase.CELEBRATING -> {
+                                val elapsed = ((time - celebrateStartTime) / 1600f).coerceIn(0f, 1f)
+                                clampedX = petFetchTargetX
+                                isWalking = false
+                                isSprinting = false
+                                isFacingLeft = false
+                                hasBallInMouth = false
+                                isEmittingHearts = true
+
+                                if (elapsed >= 1f) {
+                                    fetchPhase = FetchPhase.IDLE
+                                    xpToastText = null
+                                }
+                            }
+                            else -> {
+                                clampedX = maxX
+                                isWalking = false
+                                isFacingLeft = false
+                                isLyingDown = false
+                                isEmittingHearts = false
+                            }
+                        }
+                    } else if (isPhysicsActive) {
                         clampedX = if (state.isHangingOnEdge) {
                             if (state.tiltOffsetPx < 0) capsuleRect.left - petSize * 0.25f else capsuleRect.right - petSize * 0.75f
                         } else {
@@ -451,6 +621,8 @@ class IslandOverlayView(context: Context) : View(context) {
                         }
                     }
 
+                    petFetchCurrentX = clampedX
+
                     val myRect = RectF(clampedX, capsuleRect.centerY() - petSize / 2f, clampedX + petSize, capsuleRect.centerY() + petSize / 2f)
                     renderer.drawPet(
                         canvas = canvas,
@@ -460,8 +632,42 @@ class IslandOverlayView(context: Context) : View(context) {
                         isWalking = isWalking,
                         isFacingLeft = isFacingLeft,
                         isLyingDown = isLyingDown,
-                        isEmittingHearts = isEmittingHearts
+                        isEmittingHearts = isEmittingHearts,
+                        isSprinting = isSprinting,
+                        hasBallInMouth = hasBallInMouth
                     )
+
+                    // Отрисовка мячика при броске, подборе и отдыхе
+                    if (fetchPhase == FetchPhase.BALL_FLYING || fetchPhase == FetchPhase.PET_CHASING || fetchPhase == FetchPhase.CELEBRATING) {
+                        renderer.drawFetchBall(
+                            canvas = canvas,
+                            cx = ballCurrentX,
+                            cy = ballCurrentY,
+                            size = dp(11f) * state.islandScale,
+                            species = state.species,
+                            rotation = ballRotation
+                        )
+                    }
+
+                    // Всплывающая плашка +20 XP при победном возвращении мячика
+                    if (fetchPhase == FetchPhase.CELEBRATING && xpToastText != null) {
+                        val elapsedBadge = ((time - celebrateStartTime) / 1600f).coerceIn(0f, 1f)
+                        val badgeW = dp(64f) * state.islandScale
+                        val badgeH = dp(17f) * state.islandScale
+                        val badgeX = clampedX + petSize / 2f
+                        val badgeY = capsuleRect.top - dp(2f) - (elapsedBadge * dp(10f))
+                        val alphaInt = ((1f - elapsedBadge) * 255).toInt().coerceIn(0, 255)
+
+                        xpBadgeBgPaint.alpha = alphaInt
+                        xpBadgeBorderPaint.alpha = alphaInt
+                        xpBadgePaint.alpha = alphaInt
+
+                        val badgeRect = RectF(badgeX - badgeW / 2f, badgeY - badgeH / 2f, badgeX + badgeW / 2f, badgeY + badgeH / 2f)
+                        canvas.drawRoundRect(badgeRect, badgeH / 2f, badgeH / 2f, xpBadgeBgPaint)
+                        canvas.drawRoundRect(badgeRect, badgeH / 2f, badgeH / 2f, xpBadgeBorderPaint)
+                        val textY = badgeRect.centerY() - (xpBadgePaint.descent() + xpBadgePaint.ascent()) / 2f
+                        canvas.drawText(xpToastText!!, badgeX, textY, xpBadgePaint)
+                    }
                 }
             }
         } else {
@@ -676,78 +882,99 @@ class IslandOverlayView(context: Context) : View(context) {
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_DOWN) {
-            if (!capsuleRect.contains(event.x, event.y)) {
-                return false
+        val state = IslandStateBus.state.value
+
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                if (!capsuleRect.contains(event.x, event.y)) {
+                    return false
+                }
+                downX = event.x
+                downY = event.y
+                downTime = System.currentTimeMillis()
+                return true
             }
+            MotionEvent.ACTION_UP -> {
+                if (!capsuleRect.contains(downX, downY) && !capsuleRect.contains(event.x, event.y)) {
+                    return false
+                }
 
-            val state = IslandStateBus.state.value
-            if (!state.isExpanded) {
-                vibrateClick()
-                IslandStateBus.setExpanded(true)
-                scheduleAutoCollapse(5000L)
-            } else {
-                when {
-                    // Кнопки управления плеером
-                    btnPrevRect.contains(event.x, event.y) -> {
-                        vibrateClick()
-                        scheduleAutoCollapse(4000L)
-                        MediaControlHelper.prevTrack(context)
-                    }
-                    btnPlayPauseRect.contains(event.x, event.y) -> {
-                        vibrateClick()
-                        scheduleAutoCollapse(4000L)
-                        MediaControlHelper.playPause(context)
-                    }
-                    btnNextRect.contains(event.x, event.y) -> {
-                        vibrateClick()
-                        scheduleAutoCollapse(4000L)
-                        MediaControlHelper.nextTrack(context)
-                    }
+                val dx = event.x - downX
+                val dt = System.currentTimeMillis() - downTime
 
-                    // Кнопки заявки в друзья
-                    !state.incomingFriendRequestFrom.isNullOrBlank() && btnAcceptRect.contains(event.x, event.y) -> {
+                if (!state.isExpanded) {
+                    // СВЕРНУТЫЙ РЕЖИМ: свайп бросает мячик / клубок, одиночный тап раскрывает панель
+                    if (abs(dx) > dp(14f) && dt < 650L) {
+                        startFetchGame(throwRight = (dx > 0))
+                    } else if (capsuleRect.contains(event.x, event.y)) {
                         vibrateClick()
-                        IslandStateBus.setIncomingRequest(null)
-                        FirebaseCoupleManager.sendPartnerAction("ACCEPT_FRIEND")
-                        scheduleAutoCollapse(2000L)
+                        IslandStateBus.setExpanded(true)
+                        scheduleAutoCollapse(5000L)
                     }
-                    !state.incomingFriendRequestFrom.isNullOrBlank() && btnDeclineRect.contains(event.x, event.y) -> {
-                        vibrateClick()
-                        IslandStateBus.setIncomingRequest(null)
-                        FirebaseCoupleManager.sendPartnerAction("DECLINE_FRIEND")
-                        scheduleAutoCollapse(2000L)
-                    }
+                } else {
+                    // РАСКРЫТЫЙ РЕЖИМ
+                    when {
+                        // Кнопки управления плеером
+                        btnPrevRect.contains(event.x, event.y) || btnPrevRect.contains(downX, downY) -> {
+                            vibrateClick()
+                            scheduleAutoCollapse(4000L)
+                            MediaControlHelper.prevTrack(context)
+                        }
+                        btnPlayPauseRect.contains(event.x, event.y) || btnPlayPauseRect.contains(downX, downY) -> {
+                            vibrateClick()
+                            scheduleAutoCollapse(4000L)
+                            MediaControlHelper.playPause(context)
+                        }
+                        btnNextRect.contains(event.x, event.y) || btnNextRect.contains(downX, downY) -> {
+                            vibrateClick()
+                            scheduleAutoCollapse(4000L)
+                            MediaControlHelper.nextTrack(context)
+                        }
 
-                    // Нижний ряд кнопок действий
-                    btnFeedRect.contains(event.x, event.y) -> {
-                        vibrateClick()
-                        IslandStateBus.feedPet()
-                        FirebaseCoupleManager.sendPartnerAction("FEED")
-                        scheduleAutoCollapse(2500L)
-                    }
-                    btnPokeRect.contains(event.x, event.y) -> {
-                        vibrateClick()
-                        val partnerName = state.partnerUsername.ifBlank { "напарник" }
-                        IslandStateBus.triggerPokeWave(partnerName)
-                        FirebaseCoupleManager.sendPartnerAction("HEART")
-                        scheduleAutoCollapse(2500L)
-                    }
-                    btnVisitRect.contains(event.x, event.y) -> {
-                        vibrateClick()
-                        IslandStateBus.triggerPartnerVisit()
-                        FirebaseCoupleManager.sendPartnerAction("VISIT")
-                        scheduleAutoCollapse(2500L)
-                    }
-                    else -> {
-                        // Тапнули мимо кнопок по карточке -> моментально закрываем!
-                        vibrateClick()
-                        cancelAutoCollapse()
-                        IslandStateBus.setExpanded(false)
+                        // Кнопки заявки в друзья
+                        !state.incomingFriendRequestFrom.isNullOrBlank() && (btnAcceptRect.contains(event.x, event.y) || btnAcceptRect.contains(downX, downY)) -> {
+                            vibrateClick()
+                            IslandStateBus.setIncomingRequest(null)
+                            FirebaseCoupleManager.sendPartnerAction("ACCEPT_FRIEND")
+                            scheduleAutoCollapse(2000L)
+                        }
+                        !state.incomingFriendRequestFrom.isNullOrBlank() && (btnDeclineRect.contains(event.x, event.y) || btnDeclineRect.contains(downX, downY)) -> {
+                            vibrateClick()
+                            IslandStateBus.setIncomingRequest(null)
+                            FirebaseCoupleManager.sendPartnerAction("DECLINE_FRIEND")
+                            scheduleAutoCollapse(2000L)
+                        }
+
+                        // Нижний ряд кнопок действий
+                        btnFeedRect.contains(event.x, event.y) || btnFeedRect.contains(downX, downY) -> {
+                            vibrateClick()
+                            IslandStateBus.feedPet()
+                            FirebaseCoupleManager.sendPartnerAction("FEED")
+                            scheduleAutoCollapse(2500L)
+                        }
+                        btnPokeRect.contains(event.x, event.y) || btnPokeRect.contains(downX, downY) -> {
+                            vibrateClick()
+                            val partnerName = state.partnerUsername.ifBlank { "напарник" }
+                            IslandStateBus.triggerPokeWave(partnerName)
+                            FirebaseCoupleManager.sendPartnerAction("HEART")
+                            scheduleAutoCollapse(2500L)
+                        }
+                        btnVisitRect.contains(event.x, event.y) || btnVisitRect.contains(downX, downY) -> {
+                            vibrateClick()
+                            IslandStateBus.triggerPartnerVisit()
+                            FirebaseCoupleManager.sendPartnerAction("VISIT")
+                            scheduleAutoCollapse(2500L)
+                        }
+                        else -> {
+                            // Тапнули мимо кнопок по карточке -> моментально закрываем!
+                            vibrateClick()
+                            cancelAutoCollapse()
+                            IslandStateBus.setExpanded(false)
+                        }
                     }
                 }
+                return true
             }
-            return true
         }
         return super.onTouchEvent(event)
     }

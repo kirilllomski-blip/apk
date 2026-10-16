@@ -223,6 +223,23 @@ object IslandStateBus {
         handler.postDelayed(runnable, 3500L)
     }
 
+    fun addXpAndMood(xpAmount: Int, moodAmount: Int = 10) {
+        _state.update { current ->
+            val newMood = (current.mood + moodAmount).coerceAtMost(100)
+            var newXp = current.xp + xpAmount
+            var newLevel = current.petLevel
+            if (newXp >= 100) {
+                newLevel++
+                newXp -= 100
+            }
+            current.copy(
+                mood = newMood,
+                xp = newXp,
+                petLevel = newLevel
+            )
+        }
+    }
+
     fun triggerDoomscrollWarning(warning: String) {
         doomscrollRunnable?.let { handler.removeCallbacks(it) }
         _state.update {
