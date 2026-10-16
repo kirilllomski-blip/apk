@@ -251,7 +251,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             setPadding(dp(2), dp(6), dp(2), dp(6))
             val lp = LinearLayout.LayoutParams(0, dp(62), 1f).apply {
-                setMargins(dp(2.5f), 0, dp(2.5f), 0)
+                setMargins(dp(2), 0, dp(2), 0)
             }
             layoutParams = lp
 
@@ -261,7 +261,7 @@ class MainActivity : Activity() {
                 if (isSelected) {
                     setStroke(dp(3), C_SCREEN_BG)
                 } else {
-                    setStroke(dp(1.5f), Color.WHITE)
+                    setStroke(dp(1), Color.WHITE)
                 }
             }
 
@@ -312,9 +312,9 @@ class MainActivity : Activity() {
             val bg = btn.background as? GradientDrawable ?: continue
 
             if (isCurrent) {
-                bg.setStroke(dp(3.5f), Color.parseColor("#151821"))
+                bg.setStroke(dp(3), Color.parseColor("#151821"))
             } else {
-                bg.setStroke(dp(1.5f), Color.WHITE)
+                bg.setStroke(dp(1), Color.WHITE)
             }
         }
     }
@@ -1002,7 +1002,7 @@ class MainActivity : Activity() {
             background = GradientDrawable().apply {
                 setColor(C_CARD_BG)
                 cornerRadius = dp(14f)
-                setStroke(dp(1.5f), C_CARD_BORDER)
+                setStroke(dp(1), C_CARD_BORDER)
             }
         }
     }
@@ -1092,7 +1092,7 @@ class MainActivity : Activity() {
                 setColor(if (isSelected) activeColor else C_BRICK_DARK)
                 cornerRadius = dp(11f)
                 if (isSelected) {
-                    setStroke(dp(2.5f), Color.WHITE)
+                    setStroke(dp(2), Color.WHITE)
                 } else {
                     setStroke(dp(1), C_CARD_BORDER)
                 }

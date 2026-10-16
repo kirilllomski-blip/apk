@@ -274,6 +274,29 @@ class PixelPetRenderer(private val context: Context) {
         canvas.restore()
     }
 
+    fun getFrameDelayMs(mode: PetMode = PetMode.IDLE): Long {
+        return when (mode) {
+            PetMode.IDLE -> 80L
+            PetMode.SLEEP -> 120L
+            PetMode.MUSIC -> 50L
+            PetMode.CHARGING -> 60L
+            PetMode.NOTIFICATION -> 70L
+            PetMode.EATING -> 65L
+            PetMode.WAVE_POKE -> 50L
+            PetMode.DOOMSCROLL -> 50L
+            PetMode.COUPLE_VISIT -> 60L
+        }
+    }
+
+    fun drawGuestPet(canvas: Canvas, dstRect: RectF, frameIndex: Int = 0) {
+        val state = IslandStateBus.state.value
+        val guestSpecies = if (state.species == PetSpecies.CAT) PetSpecies.DOG else PetSpecies.CAT
+        val bSize = dstRect.width() / 14f
+        val startX = dstRect.left + dstRect.width() * 0.12f
+        val startY = dstRect.top + dstRect.height() * 0.08f
+        drawVoxelAnimalModel(canvas, startX, startY, bSize, guestSpecies, PetMode.IDLE, System.currentTimeMillis())
+    }
+
     /**
      * Отрисовка самого зверька из 3D кубиков (Кот или Собачка Сиба-ину).
      */
