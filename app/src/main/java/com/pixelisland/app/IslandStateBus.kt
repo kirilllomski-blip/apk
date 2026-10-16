@@ -63,7 +63,9 @@ data class IslandState(
     val stepsGoal: Int = 5000,
     val coins: Int = 120,
     val forceSunglasses: Boolean = false,
-    val forceNightcap: Boolean = false
+    val forceNightcap: Boolean = false,
+    val isPartnerBatteryLow: Boolean = false,
+    val partnerBatteryPct: Int = 100
 )
 
 object IslandStateBus {
@@ -303,22 +305,30 @@ object IslandStateBus {
 
     fun triggerPartnerNote(note: String, batteryPct: Int) {
         partnerNoteRunnable?.let { handler.removeCallbacks(it) }
+        val isLow = batteryPct in 1..15
         _state.update {
             it.copy(
                 petMode = PetMode.WAVE_POKE,
-                partnerNoteText = "💌 $note (🔋$batteryPct%)"
+                partnerNoteText = if (isLow) "🪫 У напарника $batteryPct% заряда! $note" else "💌 $note (🔋$batteryPct%)",
+                isPartnerBatteryLow = isLow,
+                partnerBatteryPct = batteryPct
             )
         }
         val runnable = Runnable {
             _state.update {
                 it.copy(
-                    partnerNoteText = null
+                    partnerNoteText = null,
+                    isPartnerBatteryLow = false
                 )
             }
             recalculatePetMode()
         }
         partnerNoteRunnable = runnable
-        handler.postDelayed(runnable, 5000L)
+        handler.postDelayed(runnable, 7000L)
+    }
+
+    fun triggerLowBatteryAlert(pct: Int = 12) {
+        triggerPartnerNote("Телефон на грани выключения!", pct)
     }
 
     fun recalculatePetMode() {

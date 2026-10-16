@@ -270,6 +270,11 @@ class PixelPetRenderer(private val context: Context) {
             else -> {}
         }
 
+        if (state.isPartnerBatteryLow) {
+            val shiverX = sin(timeSec * 28f) * (bSize * 0.35f)
+            startX += shiverX
+        }
+
         // Рисуем базовую модельку зверька: либо лежащий калачиком (Loaf), либо стоящий/шагающий/бегущий
         if (isLyingDown || mode == PetMode.SLEEP) {
             drawLyingDownAnimalModel(canvas, startX, startY, bSize, state.species, mode, time)
@@ -317,6 +322,13 @@ class PixelPetRenderer(private val context: Context) {
         // 4. ПЛАВАЮЩИЕ СЕРДЕЧКИ И ЗВЕЗДОЧКИ (рисуем поверх без зеркального отражения)
         if (isEmittingHearts) {
             drawFloatingHearts(canvas, dstRect.centerX(), dstRect.top + bSize * 2f, bSize, time)
+        }
+
+        if (state.isPartnerBatteryLow) {
+            textPaint.textSize = bSize * 2.2f
+            textPaint.color = Color.parseColor("#EF4444")
+            val alertY = dstRect.top + bSize * 1.5f + sin(timeSec * 6f) * (bSize * 0.4f)
+            canvas.drawText("🪫", dstRect.centerX(), alertY, textPaint)
         }
     }
 

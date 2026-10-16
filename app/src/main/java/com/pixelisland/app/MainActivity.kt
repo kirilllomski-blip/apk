@@ -508,6 +508,18 @@ class MainActivity : Activity() {
                 Toast.makeText(context, "🌙 Ночной колпак со звездочкой переключен!", Toast.LENGTH_SHORT).show()
             })
             addView(row5)
+
+            // Строка 6: Тест батареи напарника
+            val row6 = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(3), 0, dp(3))
+            }
+            row6.addView(createSmallTestButton("🪫 Напарник <15%", C_BRICK_CORAL, 1f) {
+                vibrateQuick()
+                IslandStateBus.triggerLowBatteryAlert(12)
+                Toast.makeText(context, "🪫 У напарника 12% заряда! Питомец тревожится и дрожит!", Toast.LENGTH_SHORT).show()
+            })
+            addView(row6)
         }
         container.addView(testCard)
     }
