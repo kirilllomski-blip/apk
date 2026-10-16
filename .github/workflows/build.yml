@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -43,3 +45,16 @@ jobs:
         with:
           name: PixelDynamicIsland-APK
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Release APK
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        with:
+          tag_name: latest
+          name: "Pixel Dynamic Island APK (Cozy Brick Update)"
+          body: "Обновление Pixel Dynamic Island: Cozy Brick UI, питомцы Кот и Пес, переключение музыки и авто-детектор Анти-Рилсов."
+          files: app/build/outputs/apk/debug/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

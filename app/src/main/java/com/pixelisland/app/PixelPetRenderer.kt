@@ -41,7 +41,7 @@ class PixelPetRenderer(private val context: Context) {
         isFilterBitmap = false
         isAntiAlias = false
         isDither = false
-        colorFilter = PorterDuffColorFilter(Color.rgb(128, 222, 255), PorterDuff.Mode.MULTIPLY)
+        colorFilter = PorterDuffColorFilter(Color.rgb(255, 230, 200), PorterDuff.Mode.MULTIPLY)
     }
 
     @Suppress("DEPRECATION")
@@ -49,22 +49,42 @@ class PixelPetRenderer(private val context: Context) {
     private var customBitmap: Bitmap? = null
     private var loadedVersion: Int = -1
 
-    // Премиальная палитра Cyber-Cat (Темный титан, керамический белый, неоновый циан и золото)
-    private val C_TITAN_DARK = Color.parseColor("#15181E")
-    private val C_TITAN_MID  = Color.parseColor("#252B36")
-    private val C_TITAN_LGT  = Color.parseColor("#3D4657")
-    private val C_WHITE_ARMOR= Color.parseColor("#EEF4FB")
-    private val C_WHITE_SHAD = Color.parseColor("#B8C6D6")
-    private val C_NEON_CYAN  = Color.parseColor("#00E5FF")
-    private val C_CYAN_GLOW  = Color.parseColor("#18FFFF")
-    private val C_RED_WARN   = Color.parseColor("#FF1744")
-    private val C_AMBER_WARN = Color.parseColor("#FF9100")
-    private val C_GOLD       = Color.parseColor("#FFD700")
-    private val C_NEON_GREEN = Color.parseColor("#00E676")
-    private val C_BURGER_BUN = Color.parseColor("#E59866")
-    private val C_BURGER_MEAT= Color.parseColor("#6E2C00")
-    private val C_BURGER_CHZ = Color.parseColor("#F1C40F")
-    private val C_BURGER_SAL = Color.parseColor("#27AE60")
+    // ==================== УЮТНАЯ ПАЛИТРА 3D-КОНСТРУКТОРА ИГРУШЕК ====================
+
+    // Кот: Рыже-белый пушистик
+    private val C_CAT_GINGER       = Color.parseColor("#F97316") // Яркий теплый рыжий
+    private val C_CAT_GINGER_DARK  = Color.parseColor("#EA580C") // Темно-рыжие полоски/ушки
+    private val C_CAT_WHITE        = Color.parseColor("#FFFDF7") // Кремово-белая мордочка/грудка
+    private val C_CAT_SHADOW       = Color.parseColor("#E2D9CC") // Тень белой шерстки
+    private val C_CAT_PINK         = Color.parseColor("#FB7185") // Розовый носик, ушки внутри, румянец
+    private val C_CAT_EYE          = Color.parseColor("#1E293B") // Глазки-бусинки
+    private val C_COLLAR_TEAL      = Color.parseColor("#06B6D4") // Бирюзовый ошейник
+    private val C_BELL_GOLD        = Color.parseColor("#FBBF24") // Золотой колокольчик
+
+    // Собака: Сиба-Ину / Корги
+    private val C_DOG_HONEY        = Color.parseColor("#F59E0B") // Золотисто-медовый окрас
+    private val C_DOG_TAN_DARK     = Color.parseColor("#D97706") // Темно-рыжие ушки и спинка
+    private val C_DOG_WHITE        = Color.parseColor("#FFFDF7") // Белые щечки, манишка и лапки
+    private val C_DOG_SHADOW       = Color.parseColor("#E5DCCE")
+    private val C_DOG_NOSE         = Color.parseColor("#0F172A") // Черный носик-кнопка
+    private val C_DOG_TONGUE       = Color.parseColor("#FB7185") // Розовый высунутый язычок
+    private val C_COLLAR_RED       = Color.parseColor("#EF4444") // Красный ошейник
+
+    // Аксессуары и эмоции
+    private val C_HEADPHONES_RED   = Color.parseColor("#FF3D00") // ОГРОМНЫЕ красные наушники
+    private val C_HEADPHONES_CUP   = Color.parseColor("#18181B") // Темные амбушюры
+    private val C_VINYL_BLACK      = Color.parseColor("#09090B") // Виниловая пластинка
+    private val C_NOTE_CYAN        = Color.parseColor("#06B6D4") // Ноты
+    private val C_NOTE_YELLOW      = Color.parseColor("#FBBF24")
+    private val C_HEART_RED        = Color.parseColor("#EF4444") // Сердечки
+    private val C_STAR_GOLD        = Color.parseColor("#F59E0B") // Звездочки
+    private val C_BURGER_BUN       = Color.parseColor("#F59E0B") // Булочка бургера
+    private val C_BURGER_SAL       = Color.parseColor("#22C55E") // Лист салата
+    private val C_BURGER_CHZ       = Color.parseColor("#FBBF24") // Сыр
+    private val C_BURGER_MEAT      = Color.parseColor("#78350F") // Котлета
+    private val C_BONE_WHITE       = Color.parseColor("#F8FAFC") // Сахарная косточка
+    private val C_SIGN_YELLOW      = Color.parseColor("#FDE047") // Желтая табличка Анти-Рилсы
+    private val C_SIGN_BORDER      = Color.parseColor("#DC2626")
 
     private fun adjustBrightness(color: Int, amount: Int): Int {
         val a = Color.alpha(color)
@@ -75,40 +95,40 @@ class PixelPetRenderer(private val context: Context) {
     }
 
     /**
-     * Отрисовка объемного 3D-кубика конструктора (Lego / Voxel Brick):
+     * Отрисовка объемного 3D-кубика конструктора (Lego Brick):
      * 1. Основной квадрат цвета [color]
-     * 2. Светлая 3D-грань сверху и слева (+35 к яркости)
-     * 3. Темная тень снизу и справа (-45 к яркости)
-     * 4. Объемная пупырка (stud) конструктора по центру сверху со светотенью
+     * 2. Светлая грань сверху и слева (+35 к яркости)
+     * 3. Мягкая теневая грань снизу и справа (-40 к яркости)
+     * 4. Объемная пупырка (stud) конструктора со светотенью
      */
     fun drawBrick(canvas: Canvas, x: Float, y: Float, size: Float, color: Int) {
-        if (color == Color.TRANSPARENT) return
+        if (color == Color.TRANSPARENT || size <= 0f) return
 
-        // 1. Основное тело кирпичика
+        // 1. Тело кирпичика
         basePaint.color = color
         canvas.drawRect(x, y, x + size, y + size, basePaint)
 
         val edgeH = size * 0.16f
 
-        // 2. Светлая грань сверху и слева (+35 к яркости)
+        // 2. Свет сверху и слева
         val highlightColor = adjustBrightness(color, 35)
         highlightPaint.color = highlightColor
         canvas.drawRect(x, y, x + size, y + edgeH, highlightPaint)
         canvas.drawRect(x, y, x + edgeH, y + size, highlightPaint)
 
-        // 3. Теневая грань снизу и справа (-45 к яркости)
-        val shadowColor = adjustBrightness(color, -45)
+        // 3. Тень снизу и справа
+        val shadowColor = adjustBrightness(color, -40)
         shadowPaint.color = shadowColor
         canvas.drawRect(x, y + size - edgeH, x + size, y + size, shadowPaint)
         canvas.drawRect(x + size - edgeH, y, x + size, y + size, shadowPaint)
 
-        // 4. Объемная круглая пупырка конструктора (stud)
-        val studR = size * 0.26f
+        // 4. Круглая пупырка конструктора (stud)
+        val studR = size * 0.25f
         val cx = x + size / 2f
         val cy = y + size / 2f
 
         studShadowPaint.color = shadowColor
-        canvas.drawCircle(cx, cy + size * 0.06f, studR, studShadowPaint)
+        canvas.drawCircle(cx, cy + size * 0.05f, studR, studShadowPaint)
 
         studPaint.color = color
         canvas.drawCircle(cx, cy, studR, studPaint)
@@ -154,6 +174,10 @@ class PixelPetRenderer(private val context: Context) {
         }
     }
 
+    /**
+     * Главная точка входа отрисовки питомца:
+     * Выбирает Кот / Собачка, рисует анимацию соответствующего режима PetMode.
+     */
     fun drawPet(canvas: Canvas, dstRect: RectF, mode: PetMode, frameIndex: Int) {
         val state = IslandStateBus.state.value
         reloadCustomPetIfNeeded(state.customPetVersion)
@@ -166,296 +190,450 @@ class PixelPetRenderer(private val context: Context) {
             return
         }
 
-        // ==================== РЕНДЕР 3D LEGO КИБЕР-КОТА ====================
         val time = System.currentTimeMillis()
+        val timeSec = time * 0.001f
 
         canvas.save()
 
-        // 1. АНИМАЦИЯ НАКЛОНА / ВИСЕНИЯ НА КРАЮ (TILT / HANGING)
+        // 1. АНИМАЦИЯ НАКЛОНА (ВИСИТ НА КРАЮ ОСТРОВКА)
         if (state.isHangingOnEdge) {
-            val pendulumAngle = sin(time * 0.007f) * 24f
+            val pendulumAngle = sin(timeSec * 4f) * 20f
             val pivotX = if (state.tiltOffsetPx < 0) dstRect.left + dstRect.width() * 0.2f else dstRect.right - dstRect.width() * 0.2f
             canvas.rotate(pendulumAngle, pivotX, dstRect.top)
-
-            // Летящие капли пота от напряжения
-            val sweatPhase = (time % 700) / 700f
-            val sweatY = dstRect.top + sweatPhase * dstRect.height() * 0.9f
-            val sweatX = dstRect.centerX() + sin(time * 0.02f) * dstRect.width() * 0.35f
-            drawBrick(canvas, sweatX, sweatY, dstRect.width() * 0.08f, C_CYAN_GLOW)
         }
 
-        // 2. АНИМАЦИЯ ДУМСКРОЛЛИНГА (ЗУМ 1.4x, ПОДХОД К ЭКРАНУ)
-        val isDoomscroll = !state.doomscrollWarning.isNullOrBlank()
-        if (isDoomscroll) {
-            canvas.scale(1.4f, 1.4f, dstRect.centerX(), dstRect.centerY())
+        // 2. РЕЖИМ ГОСТЕЙ (COUPLE_VISIT): Рисуем ДВУХ питомцев рядом!
+        if (mode == PetMode.COUPLE_VISIT || state.hasGuestPet) {
+            drawCouplePets(canvas, dstRect, state.species, time)
+            canvas.restore()
+            return
         }
 
+        // 3. ОБЫЧНЫЙ ОДИНОЧНЫЙ ПИТОМЕЦ
         val bSize = dstRect.width() / 14f
-        var startX = dstRect.left
-        var startY = dstRect.top + dstRect.height() * 0.07f
+        var startX = dstRect.left + dstRect.width() * 0.12f
+        var startY = dstRect.top + dstRect.height() * 0.08f
 
         // Анимации вертикального смещения (дыхание, бит музыки, прыжок)
         when (mode) {
             PetMode.IDLE -> {
-                val breathY = sin(time * 0.004f) * (bSize * 0.45f)
+                val breathY = sin(timeSec * 3f) * (bSize * 0.4f)
                 startY += breathY
             }
-            PetMode.CHARGING -> {
-                val floatY = abs(sin(time * 0.012f)) * (bSize * 1.6f)
-                startY -= floatY
-            }
             PetMode.MUSIC -> {
-                val beatY = abs(sin(time * 0.01f)) * (bSize * 1.2f)
+                val beatY = abs(sin(timeSec * 6.5f)) * (bSize * 1.2f)
                 startY += beatY
             }
-            PetMode.NOTIFICATION -> {
-                val jumpY = abs(sin(time * 0.016f)) * (bSize * 1.8f)
+            PetMode.WAVE_POKE -> {
+                val jumpY = abs(sin(timeSec * 7f)) * (bSize * 1.4f)
                 startY -= jumpY
+            }
+            PetMode.EATING -> {
+                val chewY = abs(sin(timeSec * 5f)) * (bSize * 0.5f)
+                startY += chewY
+            }
+            PetMode.DOOMSCROLL -> {
+                val shakeX = sin(timeSec * 22f) * (bSize * 0.35f)
+                startX += shakeX
+            }
+            PetMode.SLEEP -> {
+                startY += bSize * 0.8f
             }
             else -> {}
         }
 
-        // Цвет глаз: в режиме думскролла - агрессивно янтарно-красный, во сне - выключен, иначе неоново-голубой
-        val eyeColor = when {
-            isDoomscroll -> if ((time % 600) < 300) C_RED_WARN else C_AMBER_WARN
-            mode == PetMode.SLEEP -> C_TITAN_MID
-            else -> C_CYAN_GLOW
-        }
+        // Рисуем базовую модельку зверька (Кот или Собака)
+        drawVoxelAnimalModel(canvas, startX, startY, bSize, state.species, mode, time)
 
-        // УШИ
-        val earTwitch = if (mode == PetMode.MUSIC) (sin(time * 0.02f) * bSize * 0.6f) else 0f
-        drawBrick(canvas, startX + bSize * 2, startY + bSize * 1 + earTwitch, bSize, C_TITAN_MID)
-        drawBrick(canvas, startX + bSize * 3, startY + bSize * 2, bSize, C_CYAN_GLOW)
-        drawBrick(canvas, startX + bSize * 10, startY + bSize * 2, bSize, C_CYAN_GLOW)
-        drawBrick(canvas, startX + bSize * 11, startY + bSize * 1 - earTwitch, bSize, C_TITAN_MID)
-
-        // ГОЛОВА (ТИТАН И БЕЛАЯ БРОНЯ)
-        for (gx in 3..10) {
-            drawBrick(canvas, startX + bSize * gx, startY + bSize * 3, bSize, C_TITAN_DARK)
-            drawBrick(canvas, startX + bSize * gx, startY + bSize * 4, bSize, C_WHITE_ARMOR)
-            drawBrick(canvas, startX + bSize * gx, startY + bSize * 5, bSize, C_WHITE_ARMOR)
-            drawBrick(canvas, startX + bSize * gx, startY + bSize * 6, bSize, C_TITAN_MID)
-        }
-
-        // НЕОНОВЫЕ ГЛАЗА
-        if (mode == PetMode.SLEEP) {
-            // Глаза закрыты (титановые щелки)
-            drawBrick(canvas, startX + bSize * 4, startY + bSize * 4, bSize, C_TITAN_DARK)
-            drawBrick(canvas, startX + bSize * 5, startY + bSize * 4, bSize, C_TITAN_DARK)
-            drawBrick(canvas, startX + bSize * 8, startY + bSize * 4, bSize, C_TITAN_DARK)
-            drawBrick(canvas, startX + bSize * 9, startY + bSize * 4, bSize, C_TITAN_DARK)
-        } else {
-            drawBrick(canvas, startX + bSize * 4, startY + bSize * 4, bSize, eyeColor)
-            drawBrick(canvas, startX + bSize * 5, startY + bSize * 4, bSize, eyeColor)
-            drawBrick(canvas, startX + bSize * 8, startY + bSize * 4, bSize, eyeColor)
-            drawBrick(canvas, startX + bSize * 9, startY + bSize * 4, bSize, eyeColor)
-        }
-
-        // КИБЕР-НОСИК И ЩЕЧКИ / РОТИК
-        val burgerPhase = (time % 2000) / 2000f
-        if (mode == PetMode.HAPPY && burgerPhase in 0.35f..0.68f) {
-            // Открытый рот во время жевания бургера (кусь!)
-            drawBrick(canvas, startX + bSize * 6f, startY + bSize * 5.2f, bSize * 2f, C_TITAN_DARK)
-            drawBrick(canvas, startX + bSize * 6.5f, startY + bSize * 5.6f, bSize, C_RED_WARN)
-        } else {
-            drawBrick(canvas, startX + bSize * 6.5f, startY + bSize * 5, bSize, C_NEON_CYAN)
-        }
-
-        // ТУЛОВИЩЕ И ЛАПЫ
-        for (gx in 4..9) {
-            drawBrick(canvas, startX + bSize * gx, startY + bSize * 7, bSize, C_TITAN_DARK)
-            drawBrick(canvas, startX + bSize * gx, startY + bSize * 8, bSize, C_WHITE_ARMOR)
-            drawBrick(canvas, startX + bSize * gx, startY + bSize * 9, bSize, C_TITAN_MID)
-        }
-
-        // ПЕРЕДНИЕ ЛАПЫ (Стук по экрану в режиме Doomscroll / махи в уведомлениях)
-        val tapPaw = if (isDoomscroll && (time % 360 < 180)) -bSize * 1.3f else 0f
-        val notifWave = if (mode == PetMode.NOTIFICATION) (sin(time * 0.02f) * bSize * 0.8f) else 0f
-
-        drawBrick(canvas, startX + bSize * 4, startY + bSize * 10 + tapPaw + notifWave, bSize, C_WHITE_ARMOR)
-        drawBrick(canvas, startX + bSize * 5, startY + bSize * 10, bSize, C_TITAN_DARK)
-        drawBrick(canvas, startX + bSize * 8, startY + bSize * 10, bSize, C_TITAN_DARK)
-        drawBrick(canvas, startX + bSize * 9, startY + bSize * 10 - notifWave, bSize, C_WHITE_ARMOR)
-
-        // ХВОСТ (ДИНАМИЧЕСКИЙ СИНУС-МАЯТНИК)
-        val tailWave = sin(time * 0.008f) * bSize * 1.5f
-        drawBrick(canvas, startX + bSize * 11, startY + bSize * 8, bSize, C_TITAN_DARK)
-        drawBrick(canvas, startX + bSize * 12 + tailWave * 0.5f, startY + bSize * 7, bSize, C_CYAN_GLOW)
-        drawBrick(canvas, startX + bSize * 12.5f + tailWave, startY + bSize * 6, bSize, C_NEON_CYAN)
-
-        // ==================== РЕЖИМНЫЕ СПЕЦЭФФЕКТЫ ====================
-
-        // [MUSIC] БОЛЬШИЕ НАУШНИКИ + DJ БУМБОКС С ЛЕТЯЩИМИ НЕОНОВЫМИ НОТАМИ
-        if (mode == PetMode.MUSIC) {
-            // Наушники на голове
-            drawBrick(canvas, startX + bSize * 2, startY + bSize * 4, bSize, C_CYAN_GLOW)
-            drawBrick(canvas, startX + bSize * 11, startY + bSize * 4, bSize, C_CYAN_GLOW)
-            for (bx in 3..10) {
-                drawBrick(canvas, startX + bSize * bx, startY + bSize * 2.5f, bSize * 0.8f, C_NEON_CYAN)
+        // Рисуем специфические накладки режима
+        when (mode) {
+            PetMode.MUSIC -> {
+                drawMusicAccessories(canvas, startX, startY, bSize, time)
             }
-
-            // DJ Бумбокс слева
-            val boomX = startX - bSize * 3.6f
-            val boomY = startY + bSize * 6
-            for (by in 0..3) {
-                for (bx in 0..2) {
-                    val c = if (bx == 1 && (by == 1 || by == 2)) C_CYAN_GLOW else C_TITAN_DARK
-                    drawBrick(canvas, boomX + bx * bSize, boomY + by * bSize, bSize, c)
-                }
+            PetMode.EATING -> {
+                drawEatingAccessories(canvas, startX, startY, bSize, state.species, time)
             }
-
-            // Летящие вверх ноты
-            val note1T = (time % 1000) / 1000f
-            val note1Y = startY + bSize * 5 - note1T * (bSize * 8f)
-            val note1X = startX - bSize * 2 + sin(time * 0.008f) * bSize * 1.5f
-            drawBrick(canvas, note1X, note1Y, bSize * 0.7f, C_CYAN_GLOW)
-
-            val note2T = ((time + 500) % 1000) / 1000f
-            val note2Y = startY + bSize * 5 - note2T * (bSize * 8f)
-            val note2X = startX + bSize * 12 + sin(time * 0.006f) * bSize * 1.5f
-            drawBrick(canvas, note2X, note2Y, bSize * 0.7f, C_GOLD)
-        }
-
-        // [CHARGING] ЭНЕРГЕТИЧЕСКОЕ ПОЛЕ, ИСКРЫ И ЗЕЛЕНАЯ МОЛНИЯ
-        if (mode == PetMode.CHARGING) {
-            // Молния справа
-            val lx = startX + bSize * 11.5f
-            drawBrick(canvas, lx + bSize * 1.5f, startY + bSize * 2, bSize, C_GOLD)
-            drawBrick(canvas, lx + bSize * 1f, startY + bSize * 3, bSize, C_GOLD)
-            drawBrick(canvas, lx + bSize * 0.5f, startY + bSize * 4, bSize, C_NEON_GREEN)
-            drawBrick(canvas, lx + bSize * 1.5f, startY + bSize * 4, bSize, C_GOLD)
-            drawBrick(canvas, lx + bSize * 1f, startY + bSize * 5, bSize, C_NEON_GREEN)
-            drawBrick(canvas, lx + bSize * 0.5f, startY + bSize * 6, bSize, C_GOLD)
-
-            // Летящие блочные искры снизу вверх
-            for (i in 0..4) {
-                val sparkPhase = ((time + i * 200) % 900) / 900f
-                val spY = dstRect.bottom - sparkPhase * dstRect.height() * 1.1f
-                val spX = dstRect.left + (i * bSize * 2.6f)
-                val sparkColor = if (i % 2 == 0) C_NEON_GREEN else C_CYAN_GLOW
-                drawBrick(canvas, spX, spY, bSize * 0.6f, sparkColor)
+            PetMode.WAVE_POKE -> {
+                drawWavePokeAccessories(canvas, startX, startY, bSize, time)
             }
-        }
-
-        // [NOTIFICATION] ЯРКИЙ ЖЕЛТО-ГОЛУБОЙ КОНВЕРТ И ОБЛАЧКО [ ! ]
-        if (mode == PetMode.NOTIFICATION) {
-            // Конверт в лапах
-            val envX = startX + bSize * 5
-            val envY = startY + bSize * 6.5f
-            for (ey in 0..1) {
-                for (ex in 0..3) {
-                    val c = if (ex == 0 || ex == 3 || ey == 0) C_GOLD else C_CYAN_GLOW
-                    drawBrick(canvas, envX + ex * bSize, envY + ey * bSize, bSize, c)
-                }
+            PetMode.DOOMSCROLL -> {
+                drawDoomscrollSign(canvas, startX, startY, bSize, time)
             }
-
-            // Облачко диалога [ ! ] над головой
-            val bubbleY = startY - bSize * 2.5f
-            val bubbleX = startX + bSize * 5.5f
-            drawBrick(canvas, bubbleX, bubbleY, bSize * 1.2f, C_RED_WARN)
-            textPaint.color = Color.WHITE
-            textPaint.textSize = bSize * 1.1f
-            canvas.drawText("!", bubbleX + bSize * 0.6f, bubbleY + bSize * 0.95f, textPaint)
-        }
-
-        // [DOOMSCROLL] ШИРОКАЯ ТАБЛИЧКА С ПРЕДУПРЕЖДЕНИЕМ
-        if (isDoomscroll) {
-            val signW = bSize * 10f
-            val signX = startX + bSize * 2f
-            val signY = startY + bSize * 8.5f
-            for (sy in 0..2) {
-                for (sx in 0..9) {
-                    val c = if (sx == 0 || sx == 9 || sy == 0 || sy == 2) C_GOLD else C_TITAN_DARK
-                    drawBrick(canvas, signX + sx * bSize, signY + sy * bSize, bSize, c)
-                }
+            PetMode.CHARGING -> {
+                drawChargingSparkles(canvas, startX, startY, bSize, time)
             }
-            textPaint.color = C_RED_WARN
-            textPaint.textSize = bSize * 1.15f
-            canvas.drawText("STOP!", signX + signW / 2f, signY + bSize * 2.05f, textPaint)
-        }
-
-        // [HAPPY] ПАДАЮЩИЙ И СЪЕДАЕМЫЙ БУРГЕР + ВЗРЫВ ЗОЛОТЫХ +XP КУБИКОВ
-        if (mode == PetMode.HAPPY) {
-            val burgerY = startY + (burgerPhase * bSize * 6f).coerceAtMost(bSize * 5.5f)
-            val burgerX = startX + bSize * 4.5f
-
-            if (burgerPhase < 0.65f) {
-                // 3D Voxel Burger (Булочка, салат, сыр, котлета, булочка)
-                drawBrick(canvas, burgerX, burgerY, bSize * 1.2f, C_BURGER_BUN)
-                drawBrick(canvas, burgerX + bSize * 1.2f, burgerY, bSize * 1.2f, C_BURGER_BUN)
-
-                drawBrick(canvas, burgerX, burgerY + bSize * 0.8f, bSize * 1.2f, C_BURGER_SAL)
-                drawBrick(canvas, burgerX + bSize * 1.2f, burgerY + bSize * 0.8f, bSize * 1.2f, C_BURGER_CHZ)
-
-                drawBrick(canvas, burgerX, burgerY + bSize * 1.6f, bSize * 1.2f, C_BURGER_MEAT)
-                drawBrick(canvas, burgerX + bSize * 1.2f, burgerY + bSize * 1.6f, bSize * 1.2f, C_BURGER_BUN)
-            } else {
-                // Взрыв золотых кубиков опыта +XP
-                for (k in 0..5) {
-                    val angle = (k * 60f) * (Math.PI.toFloat() / 180f)
-                    val dist = (burgerPhase - 0.65f) * bSize * 12f
-                    val xpX = startX + bSize * 6f + cos(angle) * dist
-                    val xpY = startY + bSize * 4f + sin(angle) * dist
-                    drawBrick(canvas, xpX, xpY, bSize * 0.8f, C_GOLD)
-                }
+            PetMode.NOTIFICATION -> {
+                drawNotificationEnvelope(canvas, startX, startY, bSize, time)
             }
+            PetMode.SLEEP -> {
+                drawSleepZzz(canvas, startX, startY, bSize, time)
+            }
+            else -> {}
         }
 
         canvas.restore()
+    }
+
+    /**
+     * Отрисовка самого зверька из 3D кубиков (Кот или Собачка Сиба-ину).
+     */
+    private fun drawVoxelAnimalModel(
+        canvas: Canvas,
+        x: Float,
+        y: Float,
+        bSize: Float,
+        species: PetSpecies,
+        mode: PetMode,
+        time: Long
+    ) {
+        val timeSec = time * 0.001f
+        val isDog = (species == PetSpecies.DOG)
+
+        // Основные цвета
+        val cMain = if (isDog) C_DOG_HONEY else C_CAT_GINGER
+        val cDark = if (isDog) C_DOG_TAN_DARK else C_CAT_GINGER_DARK
+        val cWhite = C_CAT_WHITE
+        val cPink = C_CAT_PINK
+
+        // 1. ХВОСТ (Сзади)
+        if (isDog) {
+            // У собаки Сиба-Ину хвостик закручен бубликом на спинке и быстро виляет
+            val tailWag = sin(timeSec * 12f) * (bSize * 0.35f)
+            drawBrick(canvas, x + bSize * 8.5f + tailWag, y + bSize * 5.2f, bSize * 1.1f, cDark)
+            drawBrick(canvas, x + bSize * 9.2f + tailWag, y + bSize * 4.2f, bSize * 1.1f, cMain)
+            drawBrick(canvas, x + bSize * 8.6f + tailWag, y + bSize * 3.4f, bSize * 1.0f, cWhite)
+        } else {
+            // У Кота длинный пушистый хвост, плавно покачивается
+            val tailSwish = sin(timeSec * 4f) * (bSize * 0.5f)
+            drawBrick(canvas, x + bSize * 8.5f, y + bSize * 6.5f, bSize * 1.1f, cDark)
+            drawBrick(canvas, x + bSize * 9.4f, y + bSize * 5.5f, bSize * 1.1f, cMain)
+            drawBrick(canvas, x + bSize * 9.8f + tailSwish, y + bSize * 4.4f, bSize * 1.1f, cDark)
+            drawBrick(canvas, x + bSize * 9.2f + tailSwish, y + bSize * 3.4f, bSize * 1.0f, cWhite)
+        }
+
+        // 2. ТЕЛО (Спина, бока, пузико)
+        // Нижняя часть тела / задние лапки
+        drawBrick(canvas, x + bSize * 2.2f, y + bSize * 6.6f, bSize * 1.2f, cWhite) // Левая задняя
+        drawBrick(canvas, x + bSize * 7.0f, y + bSize * 6.6f, bSize * 1.2f, cWhite) // Правая задняя
+        drawBrick(canvas, x + bSize * 3.2f, y + bSize * 5.8f, bSize * 1.3f, cMain)  // Животик
+        drawBrick(canvas, x + bSize * 4.5f, y + bSize * 5.8f, bSize * 1.3f, cWhite) // Белое пузико
+        drawBrick(canvas, x + bSize * 5.8f, y + bSize * 5.8f, bSize * 1.3f, cMain)
+
+        // Грудка и спинка
+        drawBrick(canvas, x + bSize * 3.2f, y + bSize * 4.6f, bSize * 1.3f, cMain)
+        drawBrick(canvas, x + bSize * 4.5f, y + bSize * 4.6f, bSize * 1.3f, cWhite) // Манишка
+        drawBrick(canvas, x + bSize * 5.8f, y + bSize * 4.6f, bSize * 1.3f, cMain)
+
+        // Ошейник с колокольчиком / медальоном
+        val collarColor = if (isDog) C_COLLAR_RED else C_COLLAR_TEAL
+        drawBrick(canvas, x + bSize * 3.4f, y + bSize * 3.8f, bSize * 1.1f, collarColor)
+        drawBrick(canvas, x + bSize * 4.5f, y + bSize * 3.8f, bSize * 1.1f, C_BELL_GOLD) // Медальон
+        drawBrick(canvas, x + bSize * 5.6f, y + bSize * 3.8f, bSize * 1.1f, collarColor)
+
+        // 3. ГОЛОВА (Мордочка, ушки, щечки)
+        // Верх головы
+        drawBrick(canvas, x + bSize * 3.2f, y + bSize * 1.2f, bSize * 1.3f, cMain)
+        drawBrick(canvas, x + bSize * 4.5f, y + bSize * 1.2f, bSize * 1.3f, if (isDog) cWhite else cDark)
+        drawBrick(canvas, x + bSize * 5.8f, y + bSize * 1.2f, bSize * 1.3f, cMain)
+
+        // Ушки
+        if (isDog) {
+            // У Сиба-ину аккуратные треугольные ушки
+            drawBrick(canvas, x + bSize * 2.2f, y + bSize * 0.1f, bSize * 1.2f, cDark)
+            drawBrick(canvas, x + bSize * 3.2f, y + bSize * 0.2f, bSize * 1.0f, cWhite)
+            drawBrick(canvas, x + bSize * 6.8f, y + bSize * 0.1f, bSize * 1.2f, cDark)
+            drawBrick(canvas, x + bSize * 5.9f, y + bSize * 0.2f, bSize * 1.0f, cWhite)
+        } else {
+            // У Кота остренькие ушки с розовой серединкой
+            drawBrick(canvas, x + bSize * 2.2f, y + bSize * 0.0f, bSize * 1.1f, cDark)
+            drawBrick(canvas, x + bSize * 3.1f, y + bSize * 0.3f, bSize * 0.9f, cPink)
+            drawBrick(canvas, x + bSize * 6.9f, y + bSize * 0.0f, bSize * 1.1f, cDark)
+            drawBrick(canvas, x + bSize * 6.2f, y + bSize * 0.3f, bSize * 0.9f, cPink)
+        }
+
+        // Щечки и глазки
+        // Щечки
+        drawBrick(canvas, x + bSize * 2.2f, y + bSize * 2.3f, bSize * 1.3f, if (isDog) cWhite else cMain)
+        drawBrick(canvas, x + bSize * 6.8f, y + bSize * 2.3f, bSize * 1.3f, if (isDog) cWhite else cMain)
+
+        // Глазки: в WAVE_POKE жмурится от радости (^ ^), во сне спящие (- -), иначе круглые бусинки
+        when (mode) {
+            PetMode.WAVE_POKE -> {
+                // Глазки-дуги от счастья ^ ^
+                drawBrick(canvas, x + bSize * 3.5f, y + bSize * 2.1f, bSize * 1.0f, C_CAT_EYE)
+                drawBrick(canvas, x + bSize * 5.8f, y + bSize * 2.1f, bSize * 1.0f, C_CAT_EYE)
+                // Розовый румянец
+                drawBrick(canvas, x + bSize * 2.4f, y + bSize * 2.9f, bSize * 0.9f, cPink)
+                drawBrick(canvas, x + bSize * 6.9f, y + bSize * 2.9f, bSize * 0.9f, cPink)
+            }
+            PetMode.SLEEP -> {
+                // Спящие глазки - -
+                drawBrick(canvas, x + bSize * 3.4f, y + bSize * 2.5f, bSize * 1.1f, C_CAT_EYE)
+                drawBrick(canvas, x + bSize * 5.7f, y + bSize * 2.5f, bSize * 1.1f, C_CAT_EYE)
+            }
+            else -> {
+                // Большие круглые глазки-бусинки с белым бликом
+                drawBrick(canvas, x + bSize * 3.4f, y + bSize * 2.2f, bSize * 1.1f, C_CAT_EYE)
+                drawBrick(canvas, x + bSize * 5.7f, y + bSize * 2.2f, bSize * 1.1f, C_CAT_EYE)
+                // Белый блик
+                drawBrick(canvas, x + bSize * 3.5f, y + bSize * 2.2f, bSize * 0.45f, Color.WHITE)
+                drawBrick(canvas, x + bSize * 5.8f, y + bSize * 2.2f, bSize * 0.45f, Color.WHITE)
+            }
+        }
+
+        // Мордочка и носик
+        drawBrick(canvas, x + bSize * 4.1f, y + bSize * 2.8f, bSize * 1.0f, cWhite)
+        drawBrick(canvas, x + bSize * 5.1f, y + bSize * 2.8f, bSize * 1.0f, cWhite)
+
+        // Носик
+        val noseColor = if (isDog) C_DOG_NOSE else cPink
+        drawBrick(canvas, x + bSize * 4.6f, y + bSize * 2.7f, bSize * 0.95f, noseColor)
+
+        // Ротик / язычок
+        if (isDog && mode != PetMode.SLEEP) {
+            // У собаки милый высунутый язычок
+            drawBrick(canvas, x + bSize * 4.6f, y + bSize * 3.5f, bSize * 0.9f, C_DOG_TONGUE)
+        } else if (!isDog && mode == PetMode.WAVE_POKE) {
+            // У кота улыбающийся ротик
+            drawBrick(canvas, x + bSize * 4.7f, y + bSize * 3.4f, bSize * 0.7f, cPink)
+        }
+
+        // 4. ПЕРЕДНИЕ ЛАПКИ
+        if (mode == PetMode.WAVE_POKE) {
+            // Левая лапка стоит на полу
+            drawBrick(canvas, x + bSize * 3.2f, y + bSize * 6.5f, bSize * 1.2f, cWhite)
+            // ПРАВАЯ ЛАПКА ВЫСОКО ПОДНЯТА И МАШЕТ!
+            val waveOffset = sin(timeSec * 14f) * (bSize * 0.8f)
+            drawBrick(canvas, x + bSize * 6.8f + waveOffset, y + bSize * 3.6f, bSize * 1.2f, cMain)
+            drawBrick(canvas, x + bSize * 7.4f + waveOffset, y + bSize * 2.7f, bSize * 1.1f, cWhite) // Белая ладошка
+        } else {
+            // Обе лапки аккуратно сидят впереди
+            drawBrick(canvas, x + bSize * 3.2f, y + bSize * 6.6f, bSize * 1.2f, cWhite)
+            drawBrick(canvas, x + bSize * 5.8f, y + bSize * 6.6f, bSize * 1.2f, cWhite)
+        }
+    }
+
+    /**
+     * PetMode.MUSIC: БОЛЬШИЕ ЯРКО-КРАСНЫЕ СТУДИЙНЫЕ НАУШНИКИ (#FF3D00)
+     * с дугой через голову, вращающаяся пластинка и летящие ноты!
+     */
+    private fun drawMusicAccessories(canvas: Canvas, x: Float, y: Float, bSize: Float, time: Long) {
+        val timeSec = time * 0.001f
+
+        // 1. ОГРОМНЫЕ КРАСНЫЕ НАУШНИКИ
+        // Красная дуга оголовья
+        drawBrick(canvas, x + bSize * 3.1f, y - bSize * 0.8f, bSize * 1.2f, C_HEADPHONES_RED)
+        drawBrick(canvas, x + bSize * 4.4f, y - bSize * 1.0f, bSize * 1.4f, C_HEADPHONES_RED)
+        drawBrick(canvas, x + bSize * 5.9f, y - bSize * 0.8f, bSize * 1.2f, C_HEADPHONES_RED)
+
+        // Большие круглые красные чашки наушников поверх ушек
+        drawBrick(canvas, x + bSize * 1.3f, y + bSize * 0.8f, bSize * 1.8f, C_HEADPHONES_RED)
+        drawBrick(canvas, x + bSize * 1.6f, y + bSize * 1.1f, bSize * 1.2f, C_HEADPHONES_CUP)
+
+        drawBrick(canvas, x + bSize * 7.1f, y + bSize * 0.8f, bSize * 1.8f, C_HEADPHONES_RED)
+        drawBrick(canvas, x + bSize * 7.4f, y + bSize * 1.1f, bSize * 1.2f, C_HEADPHONES_CUP)
+
+        // 2. ВРАЩАЮЩАЯСЯ ВИНИЛОВАЯ ПЛАСТИНКА СПРАВА
+        val vinylX = x + bSize * 9.6f
+        val vinylY = y + bSize * 4.6f
+        drawBrick(canvas, vinylX, vinylY, bSize * 2.2f, C_VINYL_BLACK)
+        drawBrick(canvas, vinylX + bSize * 0.6f, vinylY + bSize * 0.6f, bSize * 1.0f, C_HEADPHONES_RED) // Центр пластинки
+
+        // 3. ЛЕТЯЩИЕ ЦВЕТНЫЕ МУЗЫКАЛЬНЫЕ НОТЫ (♪ ♫)
+        textPaint.textSize = bSize * 2.4f
+
+        for (i in 0..2) {
+            val notePhase = ((timeSec * 1.4f + i * 0.33f) % 1.0f)
+            val noteY = y + bSize * 2.5f - notePhase * bSize * 6.5f
+            val noteX = x + bSize * 8.2f + sin(notePhase * 6.28f + i) * (bSize * 2.2f)
+
+            textPaint.color = if (i % 2 == 0) C_NOTE_CYAN else C_NOTE_YELLOW
+            textPaint.alpha = ((1f - notePhase) * 255).toInt().coerceIn(0, 255)
+            canvas.drawText(if (i == 1) "♫" else "♪", noteX, noteY, textPaint)
+        }
+    }
+
+    /**
+     * PetMode.EATING: Бургер для кота или косточка для собаки, анимация жевания и плюсики +XP!
+     */
+    private fun drawEatingAccessories(
+        canvas: Canvas,
+        x: Float,
+        y: Float,
+        bSize: Float,
+        species: PetSpecies,
+        time: Long
+    ) {
+        val timeSec = time * 0.001f
+        val chewPhase = (sin(timeSec * 8f) + 1f) * 0.5f
+
+        val foodX = x + bSize * 4.1f
+        val foodY = y + bSize * 4.0f + chewPhase * (bSize * 0.3f)
+
+        if (species == PetSpecies.DOG) {
+            // Сахарная косточка для собачки
+            drawBrick(canvas, foodX - bSize * 0.8f, foodY - bSize * 0.3f, bSize * 0.8f, C_BONE_WHITE)
+            drawBrick(canvas, foodX - bSize * 0.8f, foodY + bSize * 0.5f, bSize * 0.8f, C_BONE_WHITE)
+            drawBrick(canvas, foodX, foodY + bSize * 0.1f, bSize * 1.6f, C_BONE_WHITE) // Тело кости
+            drawBrick(canvas, foodX + bSize * 1.6f, foodY - bSize * 0.3f, bSize * 0.8f, C_BONE_WHITE)
+            drawBrick(canvas, foodX + bSize * 1.6f, foodY + bSize * 0.5f, bSize * 0.8f, C_BONE_WHITE)
+        } else {
+            // Аппетитный 3D-бургер для кота
+            drawBrick(canvas, foodX, foodY - bSize * 0.6f, bSize * 1.8f, C_BURGER_BUN)  // Верх булочки
+            drawBrick(canvas, foodX, foodY, bSize * 1.8f, C_BURGER_SAL)                // Лист салата
+            drawBrick(canvas, foodX + bSize * 0.3f, foodY + bSize * 0.4f, bSize * 1.3f, C_BURGER_CHZ) // Сыр
+            drawBrick(canvas, foodX, foodY + bSize * 0.7f, bSize * 1.8f, C_BURGER_MEAT) // Котлетка
+            drawBrick(canvas, foodX, foodY + bSize * 1.3f, bSize * 1.8f, C_BURGER_BUN)  // Низ булочки
+        }
+
+        // Летящие зеленые плюсики +XP
+        textPaint.textSize = bSize * 1.5f
+        textPaint.color = Color.parseColor("#10B981")
+        for (k in 0..2) {
+            val xpPhase = ((timeSec * 1.8f + k * 0.35f) % 1.0f)
+            val xpY = y + bSize * 2.0f - xpPhase * (bSize * 5.0f)
+            val xpX = x + bSize * 2.0f + k * (bSize * 2.8f) + sin(xpPhase * 5f) * (bSize * 0.8f)
+            textPaint.alpha = ((1f - xpPhase) * 255).toInt().coerceIn(0, 255)
+            canvas.drawText("+XP", xpX, xpY, textPaint)
+        }
+    }
+
+    /**
+     * PetMode.WAVE_POKE: Сердечки, звездочки и искры вокруг радостного машущего питомца!
+     */
+    private fun drawWavePokeAccessories(canvas: Canvas, x: Float, y: Float, bSize: Float, time: Long) {
+        val timeSec = time * 0.001f
+
+        // Летающие сердечки и звездочки
+        textPaint.textSize = bSize * 2.2f
+
+        for (i in 0..3) {
+            val pPhase = ((timeSec * 1.5f + i * 0.25f) % 1.0f)
+            val pY = y + bSize * 4.0f - pPhase * (bSize * 6.5f)
+            val pX = x + bSize * (1.0f + i * 2.4f) + sin(pPhase * 6f + i) * (bSize * 1.2f)
+
+            textPaint.alpha = ((1f - pPhase) * 255).toInt().coerceIn(0, 255)
+            if (i % 2 == 0) {
+                textPaint.color = C_HEART_RED
+                canvas.drawText("❤️", pX, pY, textPaint)
+            } else {
+                textPaint.color = C_STAR_GOLD
+                canvas.drawText("⭐", pX, pY, textPaint)
+            }
+        }
+    }
+
+    /**
+     * PetMode.COUPLE_VISIT: Рисует СРАЗУ ДВУХ питомцев рядом (Кот и Собачка тусуются вместе)
+     * и пульсирующее сердечко между ними!
+     */
+    private fun drawCouplePets(canvas: Canvas, dstRect: RectF, mySpecies: PetSpecies, time: Long) {
+        val timeSec = time * 0.001f
+        val guestSpecies = if (mySpecies == PetSpecies.CAT) PetSpecies.DOG else PetSpecies.CAT
+
+        val bSize = dstRect.width() / 19f
+        val yBase = dstRect.top + dstRect.height() * 0.12f
+
+        // 1. Наш питомец (слева)
+        val pet1X = dstRect.left + dstRect.width() * 0.04f
+        val jump1 = abs(sin(timeSec * 4f)) * (bSize * 0.6f)
+        drawVoxelAnimalModel(canvas, pet1X, yBase - jump1, bSize, mySpecies, PetMode.WAVE_POKE, time)
+
+        // 2. Гостевой питомец (справа, повернут навстречу)
+        val pet2X = dstRect.left + dstRect.width() * 0.52f
+        val jump2 = abs(cos(timeSec * 4f)) * (bSize * 0.6f)
+        drawVoxelAnimalModel(canvas, pet2X, yBase - jump2, bSize, guestSpecies, PetMode.WAVE_POKE, time + 400L)
+
+        // 3. Большое пульсирующее сердце по центру между ними
+        val heartPulse = 1.0f + sin(timeSec * 7f) * 0.25f
+        textPaint.textSize = bSize * 4.2f * heartPulse
+        textPaint.color = C_HEART_RED
+        textPaint.alpha = 255
+        val heartX = dstRect.centerX()
+        val heartY = dstRect.centerY() + bSize * 1.5f
+        canvas.drawText("❤️", heartX, heartY, textPaint)
+    }
+
+    /**
+     * PetMode.DOOMSCROLL: Широкая желтая табличка "STOP REELS!" в лапах.
+     */
+    private fun drawDoomscrollSign(canvas: Canvas, x: Float, y: Float, bSize: Float, time: Long) {
+        val signX = x + bSize * 1.0f
+        val signY = y + bSize * 3.8f
+        val signW = bSize * 8.4f
+        val signH = bSize * 3.4f
+
+        // Желтая табличка
+        basePaint.color = C_SIGN_YELLOW
+        canvas.drawRect(signX, signY, signX + signW, signY + signH, basePaint)
+
+        // Красная рамка
+        highlightPaint.color = C_SIGN_BORDER
+        canvas.drawRect(signX, signY, signX + signW, signY + bSize * 0.4f, highlightPaint)
+        canvas.drawRect(signX, signY + signH - bSize * 0.4f, signX + signW, signY + signH, highlightPaint)
+
+        // Текст "STOP REELS!"
+        textPaint.color = Color.BLACK
+        textPaint.textSize = bSize * 1.35f
+        textPaint.alpha = 255
+        canvas.drawText("⛔ STOP REELS!", signX + signW / 2f, signY + signH * 0.65f, textPaint)
+    }
+
+    private fun drawChargingSparkles(canvas: Canvas, x: Float, y: Float, bSize: Float, time: Long) {
+        val timeSec = time * 0.001f
+        textPaint.textSize = bSize * 2.2f
+        textPaint.color = Color.parseColor("#10B981")
+        for (i in 0..2) {
+            val p = (timeSec * 2f + i * 0.33f) % 1f
+            val py = y + bSize * 3f - p * bSize * 5f
+            val px = x + bSize * (2f + i * 2.5f)
+            textPaint.alpha = ((1f - p) * 255).toInt().coerceIn(0, 255)
+            canvas.drawText("⚡", px, py, textPaint)
+        }
+    }
+
+    private fun drawNotificationEnvelope(canvas: Canvas, x: Float, y: Float, bSize: Float, time: Long) {
+        val envX = x + bSize * 4.2f
+        val envY = y + bSize * 4.6f
+        // Белый конверт
+        drawBrick(canvas, envX, envY, bSize * 1.8f, Color.WHITE)
+        drawBrick(canvas, envX + bSize * 0.4f, envY + bSize * 0.4f, bSize * 1.0f, Color.parseColor("#EF4444"))
+    }
+
+    private fun drawSleepZzz(canvas: Canvas, x: Float, y: Float, bSize: Float, time: Long) {
+        val timeSec = time * 0.001f
+        textPaint.color = Color.parseColor("#38BDF8")
+        textPaint.textSize = bSize * 2.0f
+        for (k in 0..2) {
+            val p = (timeSec * 0.8f + k * 0.33f) % 1f
+            val zy = y + bSize * 2.5f - p * bSize * 5.5f
+            val zx = x + bSize * 7.5f + p * bSize * 2.5f
+            textPaint.alpha = ((1f - p) * 255).toInt().coerceIn(0, 255)
+            canvas.drawText("Z", zx, zy, textPaint)
+        }
     }
 
     private fun drawCustomAsset(canvas: Canvas, dstRect: RectF, mode: PetMode, frameIndex: Int, state: IslandState) {
         val movie = customMovie
-        val bitmap = customBitmap
+        val bmp = customBitmap
 
-        canvas.save()
-        if (state.isHangingOnEdge) {
-            val rot = if (state.tiltOffsetPx < 0) -25f else 25f
-            canvas.rotate(rot, dstRect.centerX(), dstRect.centerY())
-        }
-
-        if (movie != null) {
-            @Suppress("DEPRECATION")
-            val duration = movie.duration().let { if (it <= 0) 1000 else it }
-            val t = (System.currentTimeMillis() % duration).toInt()
-            @Suppress("DEPRECATION")
-            movie.setTime(t)
-
-            @Suppress("DEPRECATION")
-            val mw = movie.width().toFloat().let { if (it <= 0f) 128f else it }
-            @Suppress("DEPRECATION")
-            val mh = movie.height().toFloat().let { if (it <= 0f) 128f else it }
-
+        if (movie != null && movie.duration() > 0) {
+            val timeMs = (System.currentTimeMillis() % movie.duration()).toInt()
+            movie.setTime(timeMs)
+            val w = movie.width().toFloat().coerceAtLeast(1f)
+            val h = movie.height().toFloat().coerceAtLeast(1f)
+            val scale = (dstRect.width() / w).coerceAtMost(dstRect.height() / h)
+            val drawW = w * scale
+            val drawH = h * scale
+            val dx = dstRect.left + (dstRect.width() - drawW) / 2f
+            val dy = dstRect.top + (dstRect.height() - drawH) / 2f
             canvas.save()
-            canvas.translate(dstRect.left, dstRect.top)
-            canvas.scale(dstRect.width() / mw, dstRect.height() / mh)
-            @Suppress("DEPRECATION")
+            canvas.translate(dx, dy)
+            canvas.scale(scale, scale)
             movie.draw(canvas, 0f, 0f)
             canvas.restore()
-        } else if (bitmap != null) {
-            val density = context.resources.displayMetrics.density
-            val bounceY = if (frameIndex % 2 != 0) -2f * density else 0f
-            val targetRect = RectF(dstRect.left, dstRect.top + bounceY, dstRect.right, dstRect.bottom + bounceY)
-
-            if (mode == PetMode.MUSIC) {
-                val rot = if (frameIndex % 2 == 0) 6f else -6f
-                canvas.rotate(rot, targetRect.centerX(), targetRect.centerY())
-            }
-            canvas.drawBitmap(bitmap, null, targetRect, pixelPaint)
+        } else if (bmp != null && !bmp.isRecycled) {
+            canvas.drawBitmap(bmp, null, dstRect, pixelPaint)
         }
-
-        canvas.restore()
-    }
-
-    fun drawGuestPet(canvas: Canvas, dstRect: RectF, frameIndex: Int) {
-        canvas.save()
-        canvas.scale(-1f, 1f, dstRect.centerX(), dstRect.centerY())
-        drawPet(canvas, dstRect, PetMode.HAPPY, frameIndex)
-        canvas.restore()
-    }
-
-    fun getFrameDelayMs(mode: PetMode): Long {
-        // Плавные 20 FPS для эффектов 3D-конструктора
-        return 50L
     }
 }

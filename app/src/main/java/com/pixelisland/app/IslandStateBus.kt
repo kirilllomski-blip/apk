@@ -7,45 +7,56 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+enum class PetSpecies {
+    CAT,
+    DOG
+}
+
 enum class PetMode {
     IDLE,
     SLEEP,
     MUSIC,
     CHARGING,
     NOTIFICATION,
-    HAPPY
+    EATING,
+    WAVE_POKE,
+    DOOMSCROLL,
+    COUPLE_VISIT
 }
 
 data class IslandState(
+    val species: PetSpecies = PetSpecies.CAT,
     val isExpanded: Boolean = false,
     val petMode: PetMode = PetMode.IDLE,
     val mediaTitle: String? = null,
+    val isMusicPlaying: Boolean = false,
     val lastNotificationText: String? = null,
     val offsetX: Int = 0,
     val offsetY: Int = 0,
     val islandScale: Float = 1.0f,
     val isScreenOn: Boolean = true,
     val isCharging: Boolean = false,
-    val roomCode: String = "",
+    val hunger: Int = 85,
+    val energy: Int = 90,
+    val mood: Int = 80,
+    val petLevel: Int = 1,
+    val xp: Int = 40,
+    val myUsername: String = "",
+    val partnerUsername: String = "",
+    val incomingFriendRequestFrom: String? = null,
     val hasGuestPet: Boolean = false,
     val isMyPetAway: Boolean = false,
     val partnerStatusText: String? = null,
+    val partnerNoteText: String? = null,
+    val doomscrollWarning: String? = null,
+    val doomscrollLimitMinutes: Int = 15,
+    val tiltOffsetPx: Float = 0f,
+    val isHangingOnEdge: Boolean = false,
     val adsWatchedCount: Int = 0,
     val customPetExpireMs: Long = 0L,
     val customPetVersion: Int = 0,
     val isProLifetime: Boolean = false,
-    val tiltOffsetPx: Float = 0f,
-    val isHangingOnEdge: Boolean = false,
-    val doomscrollWarning: String? = null,
-    val partnerNoteText: String? = null,
-    val hunger: Int = 85,
-    val energy: Int = 90,
-    val mood: Int = 75,
-    val petLevel: Int = 1,
-    val xp: Int = 30,
-    val myUsername: String = "",
-    val partnerUsername: String = "",
-    val incomingFriendRequestFrom: String? = null
+    val roomCode: String = ""
 )
 
 object IslandStateBus {
@@ -56,17 +67,30 @@ object IslandStateBus {
     private val handler = Handler(Looper.getMainLooper())
 
     private var notificationRunnable: Runnable? = null
+    private var eatingRunnable: Runnable? = null
+    private var pokeRunnable: Runnable? = null
     private var partnerHeartRunnable: Runnable? = null
     private var partnerVisitRunnable: Runnable? = null
     private var doomscrollRunnable: Runnable? = null
     private var partnerNoteRunnable: Runnable? = null
 
+    fun setPetSpecies(species: PetSpecies) {
+        _state.update { it.copy(species = species) }
+    }
+
     fun setPetMode(mode: PetMode) {
         _state.update { it.copy(petMode = mode) }
     }
 
-    fun setMedia(title: String?) {
-        _state.update { it.copy(mediaTitle = title) }
+    fun setMedia(title: String?, playing: Boolean = title != null) {
+        _state.update {
+            it.copy(
+                mediaTitle = title,
+                isMusicPlaying = playing,
+                petMode = if (playing && title != null) PetMode.MUSIC else it.petMode,
+                isExpanded = if (playing && title != null) true else it.isExpanded
+            )
+        }
         recalculatePetMode()
     }
 
@@ -75,14 +99,194 @@ object IslandStateBus {
         _state.update {
             it.copy(
                 lastNotificationText = text,
-                petMode = PetMode.NOTIFICATION
+                petMode = PetMode.NOTIFICATION,
+                isExpanded = text != null
             )
         }
         val runnable = Runnable {
+            _state.update { it.copy(isExpanded = false) }
             recalculatePetMode()
         }
         notificationRunnable = runnable
         handler.postDelayed(runnable, 4000L)
+    }
+
+    fun feedPet() {
+        eatingRunnable?.let { handler.removeCallbacks(it) }
+        _state.update { current ->
+            val newHunger = (current.hunger + 20).coerceAtMost(100)
+            val newMood = (current.mood + 5).coerceAtMost(100)
+            var newXp = current.xp + 15
+            var newLevel = current.petLevel
+            if (newXp >= 100) {
+                newLevel++
+                newXp -= 100
+            }
+            current.copy(
+                hunger = newHunger,
+                mood = newMood,
+                xp = newXp,
+                petLevel = newLevel,
+                petMode = PetMode.EATING,
+                isExpanded = true
+            )
+        }
+        val runnable = Runnable {
+            _state.update { it.copy(isExpanded = false) }
+            recalculatePetMode()
+        }
+        eatingRunnable = runnable
+        handler.postDelayed(runnable, 4000L)
+    }
+
+    fun triggerPokeWave(targetName: String) {
+        pokeRunnable?.let { handler.removeCallbacks(it) }
+        _state.update {
+            it.copy(
+                petMode = PetMode.WAVE_POKE,
+                partnerStatusText = "👋 Привет и пинок для @$targetName!",
+                isExpanded = true
+            )
+        }
+        val runnable = Runnable {
+            _state.update {
+                it.copy(
+                    isExpanded = false,
+                    partnerStatusText = null
+                )
+            }
+            recalculatePetMode()
+        }
+        pokeRunnable = runnable
+        handler.postDelayed(runnable, 5000L)
+    }
+
+    fun triggerPartnerHeart() {
+        partnerHeartRunnable?.let { handler.removeCallbacks(it) }
+        _state.update {
+            it.copy(
+                petMode = PetMode.WAVE_POKE,
+                partnerStatusText = "❤️ Напарник машет тебе лапой!",
+                isExpanded = true
+            )
+        }
+        val runnable = Runnable {
+            _state.update {
+                it.copy(
+                    isExpanded = false,
+                    partnerStatusText = null
+                )
+            }
+            recalculatePetMode()
+        }
+        partnerHeartRunnable = runnable
+        handler.postDelayed(runnable, 5000L)
+    }
+
+    fun triggerPartnerVisit() {
+        partnerVisitRunnable?.let { handler.removeCallbacks(it) }
+        _state.update {
+            it.copy(
+                hasGuestPet = true,
+                petMode = PetMode.COUPLE_VISIT,
+                partnerStatusText = "🐾 Питомцы тусуются вместе в гостях!",
+                isExpanded = true
+            )
+        }
+        val runnable = Runnable {
+            _state.update {
+                it.copy(
+                    hasGuestPet = false,
+                    isExpanded = false,
+                    partnerStatusText = null
+                )
+            }
+            recalculatePetMode()
+        }
+        partnerVisitRunnable = runnable
+        handler.postDelayed(runnable, 15000L)
+    }
+
+    fun playWithPet() {
+        pokeRunnable?.let { handler.removeCallbacks(it) }
+        _state.update { current ->
+            val newMood = (current.mood + 20).coerceAtMost(100)
+            var newXp = current.xp + 10
+            var newLevel = current.petLevel
+            if (newXp >= 100) {
+                newLevel++
+                newXp -= 100
+            }
+            current.copy(
+                mood = newMood,
+                xp = newXp,
+                petLevel = newLevel,
+                petMode = PetMode.WAVE_POKE,
+                isExpanded = true
+            )
+        }
+        val runnable = Runnable {
+            _state.update { it.copy(isExpanded = false) }
+            recalculatePetMode()
+        }
+        pokeRunnable = runnable
+        handler.postDelayed(runnable, 4000L)
+    }
+
+    fun triggerDoomscrollWarning(warning: String) {
+        doomscrollRunnable?.let { handler.removeCallbacks(it) }
+        _state.update {
+            it.copy(
+                isExpanded = true,
+                petMode = PetMode.DOOMSCROLL,
+                doomscrollWarning = warning
+            )
+        }
+        val runnable = Runnable {
+            _state.update {
+                it.copy(
+                    isExpanded = false,
+                    doomscrollWarning = null
+                )
+            }
+            recalculatePetMode()
+        }
+        doomscrollRunnable = runnable
+        handler.postDelayed(runnable, 6000L)
+    }
+
+    fun triggerPartnerNote(note: String, batteryPct: Int) {
+        partnerNoteRunnable?.let { handler.removeCallbacks(it) }
+        _state.update {
+            it.copy(
+                isExpanded = true,
+                petMode = PetMode.WAVE_POKE,
+                partnerNoteText = "💌 $note (🔋$batteryPct%)"
+            )
+        }
+        val runnable = Runnable {
+            _state.update {
+                it.copy(
+                    isExpanded = false,
+                    partnerNoteText = null
+                )
+            }
+            recalculatePetMode()
+        }
+        partnerNoteRunnable = runnable
+        handler.postDelayed(runnable, 7000L)
+    }
+
+    fun recalculatePetMode() {
+        val current = _state.value
+        val newMode = when {
+            !current.isScreenOn -> PetMode.SLEEP
+            current.isCharging -> PetMode.CHARGING
+            current.isMusicPlaying && current.mediaTitle != null -> PetMode.MUSIC
+            current.hasGuestPet -> PetMode.COUPLE_VISIT
+            else -> PetMode.IDLE
+        }
+        _state.update { it.copy(petMode = newMode) }
     }
 
     fun setExpanded(expanded: Boolean) {
@@ -117,59 +321,8 @@ object IslandStateBus {
         _state.update { it.copy(isMyPetAway = away) }
     }
 
-    fun triggerPartnerHeart() {
-        partnerHeartRunnable?.let { handler.removeCallbacks(it) }
-        _state.update {
-            it.copy(
-                petMode = PetMode.HAPPY,
-                partnerStatusText = "❤️ Партнёр гладит кота!",
-                isExpanded = true
-            )
-        }
-        val runnable = Runnable {
-            _state.update {
-                it.copy(
-                    isExpanded = false,
-                    partnerStatusText = null
-                )
-            }
-            recalculatePetMode()
-        }
-        partnerHeartRunnable = runnable
-        handler.postDelayed(runnable, 4000L)
-    }
-
-    fun triggerPartnerVisit() {
-        partnerVisitRunnable?.let { handler.removeCallbacks(it) }
-        _state.update {
-            it.copy(
-                hasGuestPet = true,
-                petMode = PetMode.HAPPY,
-                partnerStatusText = "🐾 Кот партнёра в гостях!"
-            )
-        }
-        val runnable = Runnable {
-            _state.update {
-                it.copy(
-                    hasGuestPet = false,
-                    partnerStatusText = null
-                )
-            }
-            recalculatePetMode()
-        }
-        partnerVisitRunnable = runnable
-        handler.postDelayed(runnable, 20000L)
-    }
-
-    fun recalculatePetMode() {
-        val current = _state.value
-        val newMode = when {
-            !current.isScreenOn -> PetMode.SLEEP
-            current.isCharging -> PetMode.CHARGING
-            current.mediaTitle != null -> PetMode.MUSIC
-            else -> PetMode.IDLE
-        }
-        _state.update { it.copy(petMode = newMode) }
+    fun setDoomscrollLimit(minutes: Int) {
+        _state.update { it.copy(doomscrollLimitMinutes = minutes) }
     }
 
     fun updateCustomPetAuth(adsCount: Int, expireMs: Long) {
@@ -200,96 +353,6 @@ object IslandStateBus {
                 isHangingOnEdge = isHanging
             )
         }
-    }
-
-    fun triggerDoomscrollWarning(warning: String) {
-        doomscrollRunnable?.let { handler.removeCallbacks(it) }
-        _state.update {
-            it.copy(
-                isExpanded = true,
-                doomscrollWarning = warning
-            )
-        }
-        val runnable = Runnable {
-            _state.update {
-                it.copy(
-                    isExpanded = false,
-                    doomscrollWarning = null
-                )
-            }
-        }
-        doomscrollRunnable = runnable
-        handler.postDelayed(runnable, 6000L)
-    }
-
-    fun triggerPartnerNote(note: String, batteryPct: Int) {
-        partnerNoteRunnable?.let { handler.removeCallbacks(it) }
-        _state.update {
-            it.copy(
-                isExpanded = true,
-                petMode = PetMode.HAPPY,
-                partnerNoteText = "💌 $note (🔋$batteryPct%)"
-            )
-        }
-        val runnable = Runnable {
-            _state.update {
-                it.copy(
-                    isExpanded = false,
-                    partnerNoteText = null
-                )
-            }
-            recalculatePetMode()
-        }
-        partnerNoteRunnable = runnable
-        handler.postDelayed(runnable, 7000L)
-    }
-
-    fun feedPet() {
-        _state.update { current ->
-            val newHunger = (current.hunger + 20).coerceAtMost(100)
-            var newXp = current.xp + 15
-            var newLevel = current.petLevel
-            if (newXp >= 100) {
-                newLevel++
-                newXp -= 100
-            }
-            current.copy(
-                hunger = newHunger,
-                xp = newXp,
-                petLevel = newLevel,
-                petMode = PetMode.HAPPY
-            )
-        }
-        partnerHeartRunnable?.let { handler.removeCallbacks(it) }
-        val runnable = Runnable {
-            recalculatePetMode()
-        }
-        partnerHeartRunnable = runnable
-        handler.postDelayed(runnable, 4000L)
-    }
-
-    fun playWithPet() {
-        _state.update { current ->
-            val newMood = (current.mood + 20).coerceAtMost(100)
-            var newXp = current.xp + 10
-            var newLevel = current.petLevel
-            if (newXp >= 100) {
-                newLevel++
-                newXp -= 100
-            }
-            current.copy(
-                mood = newMood,
-                xp = newXp,
-                petLevel = newLevel,
-                petMode = PetMode.HAPPY
-            )
-        }
-        partnerHeartRunnable?.let { handler.removeCallbacks(it) }
-        val runnable = Runnable {
-            recalculatePetMode()
-        }
-        partnerHeartRunnable = runnable
-        handler.postDelayed(runnable, 4000L)
     }
 
     fun setIncomingRequest(fromUser: String?) {

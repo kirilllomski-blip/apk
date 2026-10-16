@@ -35,72 +35,94 @@ class VoxelRoomView(context: Context) : View(context) {
     private fun dp(value: Float): Float = value * density
     private fun sp(value: Float): Float = value * scaledDensity
 
-    // Палитра Dark Gunmetal / Cyber-Brick (строгий взрослый техно-стиль)
-    private val C_WALL_BG       = Color.parseColor("#141824")
-    private val C_STUD_BASE     = Color.parseColor("#1C2230")
-    private val C_STUD_HI       = Color.parseColor("#263042")
-    private val C_STUD_SH       = Color.parseColor("#0E121A")
-    private val C_FLOOR_TILE    = Color.parseColor("#1E2638")
-    private val C_FLOOR_HI      = Color.parseColor("#2B354C")
-    private val C_FLOOR_SH      = Color.parseColor("#121722")
-    private val C_PANEL_BG      = Color.parseColor("#1F273A")
-    private val C_PANEL_BORDER  = Color.parseColor("#2D3850")
-    private val C_NEON_CYAN     = Color.parseColor("#00E5FF")
-    private val C_NEON_GREEN    = Color.parseColor("#00E676")
-    private val C_TACTICAL_AMBER= Color.parseColor("#FFB300")
-    private val C_GOLD          = Color.parseColor("#FFD700")
-    private val C_RED_ACCENT    = Color.parseColor("#FF1744")
-    private val C_MUTED_TEXT    = Color.parseColor("#94A3B8")
+    // ==================== ПАЛИТРА COZY LEGO LOFT (ТЕПЛЫЙ УЮТНЫЙ КОНСТРУКТОР) ====================
+    private val C_WALL_UPPER    = Color.parseColor("#F4EFEA") // Песочно-кремовый верх стены
+    private val C_WALL_STUD     = Color.parseColor("#E5DDD4") // Пупырки Lego на стене
+    private val C_WALL_STUD_SH  = Color.parseColor("#D4CAC0")
+    private val C_WALL_LOWER    = Color.parseColor("#D8E2DC") // Мягкий мятно-голубой плинтус/панели
+    private val C_WALL_BORDER   = Color.parseColor("#BCC8C0") // Бордюр разделителя стены
+    private val C_FLOOR_WOOD    = Color.parseColor("#C89F78") // Теплый деревянный паркет из кубиков
+    private val C_FLOOR_PLANK1  = Color.parseColor("#D4AB84")
+    private val C_FLOOR_PLANK2  = Color.parseColor("#BD926B")
+    private val C_FLOOR_SEAM    = Color.parseColor("#9E7550")
+
+    // Окно и окружение
+    private val C_SKY_BLUE      = Color.parseColor("#7DD3FC") // Ясное голубое небо
+    private val C_CLOUD_WHITE   = Color.parseColor("#FFFFFF") // Пушистые облака
+    private val C_SUN_GOLD      = Color.parseColor("#FDE047") // Солнышко
+    private val C_WINDOW_FRAME  = Color.parseColor("#FFFFFF") // Белая Lego-рама окна
+    private val C_WINDOW_SILL   = Color.parseColor("#E2E8F0")
+
+    // Мебель и декор комнаты
+    private val C_POT_TERRACOTTA= Color.parseColor("#D97706") // Горшок для цветка
+    private val C_LEAF_GREEN    = Color.parseColor("#22C55E") // Листья цветка
+    private val C_LEAF_LIGHT    = Color.parseColor("#4ADE80")
+    private val C_CHAIR_CUSHION = Color.parseColor("#FB7185") // Розовый пуфик-кресло
+    private val C_BOWL_BLUE     = Color.parseColor("#38BDF8") // Миска питомца
+    private val C_FISH_ORANGE   = Color.parseColor("#FB923C") // Рыбка в миске кота
+    private val C_BONE_WHITE    = Color.parseColor("#F8FAFC") // Косточка в миске собаки
+    private val C_SHELF_WOOD    = Color.parseColor("#A16207") // Книжная полочка
+    private val C_BOOK_RED      = Color.parseColor("#EF4444")
+    private val C_BOOK_BLUE     = Color.parseColor("#3B82F6")
+    private val C_BOOK_GREEN    = Color.parseColor("#10B981")
+
+    // Верхняя HUD-плашка
+    private val C_HUD_BG        = Color.parseColor("#FFFDF8") // Светлая кремовая карточка
+    private val C_HUD_BORDER    = Color.parseColor("#B45309") // Терракотово-медовая 3D-окантовка
+    private val C_HUD_TITLE     = Color.parseColor("#1E293B") // Четкий темно-графитовый заголовок
+    private val C_STAT_BG       = Color.parseColor("#F1F5F9") // Фоновый трек шкалы
+    private val C_STAT_HUNGER   = Color.parseColor("#EF4444") // Сытость (Кораллово-красный)
+    private val C_STAT_MOOD     = Color.parseColor("#F59E0B") // Настроение (Янтарно-золотой)
+    private val C_STAT_ENERGY   = Color.parseColor("#10B981") // Энергия (Изумрудно-зеленый)
 
     // Базовые кисти
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
 
     private val titleTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = C_NEON_CYAN
-        textSize = 10.5f * scaledDensity
-        typeface = Typeface.MONOSPACE
-        isFakeBoldText = true
+        color = C_HUD_TITLE
+        textSize = 12f * scaledDensity
+        typeface = Typeface.DEFAULT_BOLD
     }
 
     private val statLabelPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        textSize = 9.5f * scaledDensity
-        isFakeBoldText = true
+        color = Color.parseColor("#475569")
+        textSize = 9f * scaledDensity
+        typeface = Typeface.DEFAULT_BOLD
     }
 
-    private val levelTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = C_GOLD
-        textSize = 12f * scaledDensity
+    private val levelBadgePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textSize = 10f * scaledDensity
         typeface = Typeface.DEFAULT_BOLD
         textAlign = Paint.Align.CENTER
     }
 
     private val xpTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = C_MUTED_TEXT
-        textSize = 9f * scaledDensity
+        color = Color.parseColor("#94A3B8")
+        textSize = 8.5f * scaledDensity
         textAlign = Paint.Align.CENTER
     }
 
     // Области взаимодействия
     private val petTouchRect = RectF()
-    private val guestTouchRect = RectF()
     private val panelRect = RectF()
 
-    // Частицы от тапа по питомцу
-    private data class VoxelParticle(
+    // Частицы от тапа (сердечки, звездочки, конфетти)
+    private data class ToyParticle(
         var x: Float,
         var y: Float,
         var vx: Float,
         var vy: Float,
         val size: Float,
         val color: Int,
+        val isHeart: Boolean,
         var alpha: Float = 1.0f,
         val life: Float = 1.0f
     )
-    private val particles = mutableListOf<VoxelParticle>()
+    private val particles = mutableListOf<ToyParticle>()
 
-    // Анимационный таймер на 20 FPS (50ms)
+    // Анимационный цикл 20 FPS (50ms)
     private var frameIndex = 0
     private val animHandler = Handler(Looper.getMainLooper())
     private var isAnimRunning = false
@@ -158,293 +180,317 @@ class VoxelRoomView(context: Context) : View(context) {
         animHandler.removeCallbacks(animRunnable)
     }
 
-    private fun updateParticles() {
-        val iterator = particles.iterator()
-        while (iterator.hasNext()) {
-            val p = iterator.next()
-            p.x += p.vx
-            p.y += p.vy
-            p.vy += 0.35f // гравитация
-            p.alpha -= 0.045f
-            if (p.alpha <= 0f) {
-                iterator.remove()
-            }
-        }
-    }
-
-    private fun spawnTapBurst(cx: Float, cy: Float) {
-        val colors = intArrayOf(C_GOLD, C_NEON_CYAN, C_NEON_GREEN, Color.WHITE)
-        for (i in 0 until 18) {
-            val angle = Random.nextFloat() * (Math.PI.toFloat() * 2f)
-            val speed = dp(2f + Random.nextFloat() * 5f)
-            val vx = cos(angle) * speed
-            val vy = sin(angle) * speed - dp(2.5f)
-            val size = dp(3.5f + Random.nextFloat() * 3.5f)
-            val color = colors[Random.nextInt(colors.size)]
-            particles.add(VoxelParticle(cx, cy, vx, vy, size, color))
-        }
-    }
-
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+
         val w = width.toFloat()
         val h = height.toFloat()
+        val time = System.currentTimeMillis()
         val state = IslandStateBus.state.value
 
-        val floorY = h * 0.62f
+        // 1. СТЕНА И ПОЛ УЮТНОГО ЛОФТА (COZY LEGO LOFT)
+        drawCozyRoomBackground(canvas, w, h, time)
 
-        // ==================== 1. ФОН СТЕНЫ И РЕЛЬЕФНАЯ СЕТКА КУБИКОВ ====================
-        fillPaint.color = C_WALL_BG
-        canvas.drawRect(0f, 0f, w, floorY, fillPaint)
+        // 2. ДЕКОР И ИНТЕРЬЕР ИЗ КУБИКОВ (Окно, цветок, диванчик, миска)
+        drawCozyFurniture(canvas, w, h, state, time)
 
-        // Рельефная сетка 3D-пупырок конструктора (studs) на стене
-        val gridStep = dp(18f)
-        var gy = dp(6f)
-        while (gy < floorY - dp(8f)) {
-            var gx = dp(10f)
-            while (gx < w - dp(10f)) {
-                val r = dp(2.2f)
-                fillPaint.color = C_STUD_SH
-                canvas.drawCircle(gx + dp(0.8f), gy + dp(0.8f), r, fillPaint)
-                fillPaint.color = C_STUD_BASE
-                canvas.drawCircle(gx, gy, r, fillPaint)
-                fillPaint.color = C_STUD_HI
-                canvas.drawCircle(gx - dp(0.5f), gy - dp(0.5f), r * 0.45f, fillPaint)
-                gx += gridStep
-            }
-            gy += gridStep
-        }
+        // 3. ЖИВОЙ ПИТОМЕЦ ПО ЦЕНТРУ КОМНАТЫ
+        val petW = dp(116f)
+        val petH = dp(116f)
+        val petX = (w - petW) / 2f
+        val petY = h - dp(142f)
+        petTouchRect.set(petX, petY, petX + petW, petY + petH)
 
-        // ==================== 2. БЛОЧНОЕ ОКНО С КИБЕР-ГОРОДОМ ====================
-        val winW = dp(84f)
-        val winH = dp(56f)
-        val winX = w * 0.46f
-        val winY = floorY - winH - dp(32f)
+        renderer.drawPet(canvas, petTouchRect, state.petMode, frameIndex)
 
-        // Рама окна из темного титана
-        for (bx in 0..6) {
-            for (by in 0..4) {
-                if (bx == 0 || bx == 6 || by == 0 || by == 4 || bx == 3) {
-                    renderer.drawBrick(canvas, winX + bx * dp(12f), winY + by * dp(11.2f), dp(12f), C_FLOOR_TILE)
-                }
-            }
-        }
-        // Стекло и силуэты кибер-небоскребов
-        fillPaint.color = Color.parseColor("#090C14")
-        canvas.drawRect(winX + dp(12f), winY + dp(11f), winX + winW - dp(12f), winY + winH - dp(11f), fillPaint)
+        // 4. ЧАСТИЦЫ ОТ ТАПОВ
+        drawToyParticles(canvas)
 
-        // Огоньки города в окне
-        fillPaint.color = C_NEON_CYAN
-        canvas.drawRect(winX + dp(18f), winY + dp(22f), winX + dp(22f), winY + dp(40f), fillPaint)
-        fillPaint.color = C_TACTICAL_AMBER
-        canvas.drawRect(winX + dp(26f), winY + dp(28f), winX + dp(31f), winY + dp(42f), fillPaint)
-        fillPaint.color = C_RED_ACCENT
-        canvas.drawRect(winX + dp(52f), winY + dp(18f), winX + dp(57f), winY + dp(42f), fillPaint)
-        fillPaint.color = C_GOLD
-        canvas.drawCircle(winX + dp(64f), winY + dp(20f), dp(1.8f), fillPaint)
-
-        // ==================== 3. ПОЛ ИЗ ТИТАНОВОЙ ПЛИТКИ ====================
-        fillPaint.color = C_FLOOR_TILE
-        canvas.drawRect(0f, floorY, w, h, fillPaint)
-
-        // Швы и стыки блоков плитки пола
-        strokePaint.color = C_FLOOR_HI
-        strokePaint.strokeWidth = dp(1.5f)
-        canvas.drawLine(0f, floorY, w, floorY, strokePaint)
-
-        val tileW = dp(32f)
-        var tx = 0f
-        while (tx < w) {
-            strokePaint.color = C_FLOOR_SH
-            canvas.drawLine(tx, floorY, tx, h, strokePaint)
-            strokePaint.color = C_FLOOR_HI
-            canvas.drawLine(tx + dp(1f), floorY, tx + dp(1f), h, strokePaint)
-            tx += tileW
-        }
-
-        // ==================== 4. БЛОЧНАЯ МЕБЕЛЬ И ДЕКОРАЦИИ ====================
-
-        // СЛЕВА: Темный геймерский стол + 3D Монитор
-        val deskX = dp(12f)
-        val deskY = floorY - dp(18f)
-        val bSize = dp(9f)
-        for (bx in 0..3) {
-            renderer.drawBrick(canvas, deskX + bx * bSize, deskY, bSize, C_PANEL_BG)
-        }
-        renderer.drawBrick(canvas, deskX, deskY + bSize, bSize, C_FLOOR_SH)
-        renderer.drawBrick(canvas, deskX + bSize * 3, deskY + bSize, bSize, C_FLOOR_SH)
-
-        // Монитор на столе с бегущим кибер-кодом
-        val monX = deskX + bSize * 0.8f
-        val monY = deskY - bSize * 2.8f
-        renderer.drawBrick(canvas, monX + bSize * 0.6f, monY + bSize * 2f, bSize * 0.8f, C_STUD_BASE)
-        fillPaint.color = Color.parseColor("#06101E")
-        canvas.drawRect(monX, monY, monX + bSize * 2.2f, monY + bSize * 1.8f, fillPaint)
-        strokePaint.color = C_NEON_CYAN
-        strokePaint.strokeWidth = dp(1f)
-        canvas.drawRect(monX, monY, monX + bSize * 2.2f, monY + bSize * 1.8f, strokePaint)
-
-        // Линии кода на мониторе
-        fillPaint.color = C_NEON_CYAN
-        canvas.drawRect(monX + dp(2f), monY + dp(3f), monX + dp(12f), monY + dp(4.5f), fillPaint)
-        canvas.drawRect(monX + dp(2f), monY + dp(7f), monX + dp(16f), monY + dp(8.5f), fillPaint)
-        canvas.drawRect(monX + dp(2f), monY + dp(11f), monX + dp(9f), monY + dp(12.5f), fillPaint)
-
-        // СПРАВА: Блочная аудио-стойка с колонкой и миской энергетика
-        val rackX = w - dp(46f)
-        val rackY = floorY - dp(24f)
-        for (ry in 0..2) {
-            for (rx in 0..2) {
-                val c = if (rx == 1 && ry == 1) C_NEON_CYAN else C_STUD_BASE
-                renderer.drawBrick(canvas, rackX + rx * bSize, rackY + ry * bSize, bSize, c)
-            }
-        }
-        // Миска энергетика рядом со стойкой
-        val bowlX = rackX - dp(18f)
-        val bowlY = floorY - dp(6f)
-        renderer.drawBrick(canvas, bowlX, bowlY, dp(7f), C_TACTICAL_AMBER)
-        renderer.drawBrick(canvas, bowlX + dp(7f), bowlY, dp(7f), C_TACTICAL_AMBER)
-
-        // КОВРИК В ЦЕНТРЕ КОМНАТЫ
-        val matW = if (state.hasGuestPet) dp(170f) else dp(110f)
-        val matH = dp(24f)
-        val matLeft = (w - matW) / 2f
-        val matTop = floorY + dp(28f)
-        val matRect = RectF(matLeft, matTop, matLeft + matW, matTop + matH)
-
-        fillPaint.color = Color.parseColor("#151D2A")
-        canvas.drawRoundRect(matRect, dp(6f), dp(6f), fillPaint)
-        strokePaint.color = C_NEON_CYAN
-        strokePaint.strokeWidth = dp(1.5f)
-        canvas.drawRoundRect(matRect, dp(6f), dp(6f), strokePaint)
-
-        // ==================== 5. КРУПНЫЙ 3D-БЛОЧНЫЙ КИБЕР-КОТ ====================
-        val petSize = dp(84f)
-        val petBottom = matTop + dp(12f)
-        val petTop = petBottom - petSize
-
-        if (state.hasGuestPet) {
-            val p1Left = (w / 2f) - petSize - dp(6f)
-            petTouchRect.set(p1Left, petTop, p1Left + petSize, petBottom)
-            renderer.drawPet(canvas, petTouchRect, state.petMode, frameIndex)
-
-            val p2Left = (w / 2f) + dp(6f)
-            guestTouchRect.set(p2Left, petTop, p2Left + petSize, petBottom)
-            renderer.drawGuestPet(canvas, guestTouchRect, frameIndex)
-        } else {
-            val pLeft = (w - petSize) / 2f
-            petTouchRect.set(pLeft, petTop, pLeft + petSize, petBottom)
-            guestTouchRect.setEmpty()
-            renderer.drawPet(canvas, petTouchRect, state.petMode, frameIndex)
-        }
-
-        // ==================== 6. РАЗЛЕТ ЧАСТИЦ (ВОКСЕЛЬНЫЙ ВЗРЫВ) ====================
-        for (p in particles) {
-            fillPaint.color = p.color
-            fillPaint.alpha = (p.alpha * 255).toInt().coerceIn(0, 255)
-            canvas.drawRect(p.x, p.y, p.x + p.size, p.y + p.size, fillPaint)
-        }
-
-        // ==================== 7. ВЕРХНЯЯ ОБЪЕМНАЯ ПАНЕЛЬ СТАТУСА ====================
-        val pLeft = dp(12f)
-        val pTop = dp(8f)
-        val pRight = w - dp(12f)
-        val pH = dp(68f)
-        panelRect.set(pLeft, pTop, pRight, pTop + pH)
-
-        // Фон и 3D-рамка панели
-        fillPaint.color = C_PANEL_BG
-        canvas.drawRoundRect(panelRect, dp(12f), dp(12f), fillPaint)
-        strokePaint.color = C_PANEL_BORDER
-        strokePaint.strokeWidth = dp(1.5f)
-        canvas.drawRoundRect(panelRect, dp(12f), dp(12f), strokePaint)
-
-        // 3D-пупырки по верхнему краю панели для аутентичности конструктора
-        var sX = panelRect.left + dp(14f)
-        while (sX < panelRect.right - dp(14f)) {
-            val sr = dp(2f)
-            fillPaint.color = C_STUD_SH
-            canvas.drawCircle(sX + dp(0.6f), panelRect.top + dp(3.5f), sr, fillPaint)
-            fillPaint.color = C_STUD_BASE
-            canvas.drawCircle(sX, panelRect.top + dp(3f), sr, fillPaint)
-            sX += dp(16f)
-        }
-
-        // Аватарка слева
-        val avSize = dp(40f)
-        val avRect = RectF(panelRect.left + dp(10f), panelRect.centerY() - avSize / 2f + dp(2f), panelRect.left + dp(10f) + avSize, panelRect.centerY() + avSize / 2f + dp(2f))
-        fillPaint.color = Color.parseColor("#121724")
-        canvas.drawRoundRect(avRect, dp(8f), dp(8f), fillPaint)
-        strokePaint.color = C_NEON_CYAN
-        strokePaint.strokeWidth = dp(1f)
-        canvas.drawRoundRect(avRect, dp(8f), dp(8f), strokePaint)
-        renderer.drawPet(canvas, avRect, PetMode.IDLE, frameIndex)
-
-        // Правая секция: разделитель, иконка уровня и шкала XP
-        val rightSecW = dp(84f)
-        val divX = panelRect.right - rightSecW
-        strokePaint.color = C_PANEL_BORDER
-        strokePaint.strokeWidth = dp(1.2f)
-        canvas.drawLine(divX, panelRect.top + dp(10f), divX, panelRect.bottom - dp(10f), strokePaint)
-
-        val rightCenterX = divX + rightSecW / 2f
-
-        // Блочная иконка кристалла
-        val crX = rightCenterX - dp(4f)
-        val crY = panelRect.top + dp(10f)
-        renderer.drawBrick(canvas, crX, crY, dp(8f), C_GOLD)
-
-        canvas.drawText("УРОВЕНЬ ${state.petLevel}", rightCenterX, panelRect.top + dp(34f), levelTextPaint)
-        canvas.drawText("${state.xp}/100 XP", rightCenterX, panelRect.top + dp(47f), xpTextPaint)
-
-        // Полоска XP
-        val xpBarW = rightSecW - dp(24f)
-        val xpBarH = dp(3.5f)
-        val xpLeft = rightCenterX - xpBarW / 2f
-        val xpTop = panelRect.top + dp(52f)
-        val xpRect = RectF(xpLeft, xpTop, xpLeft + xpBarW, xpTop + xpBarH)
-        fillPaint.color = Color.parseColor("#111622")
-        canvas.drawRoundRect(xpRect, dp(2f), dp(2f), fillPaint)
-
-        val xpFillW = (xpBarW * (state.xp.coerceIn(0, 100) / 100f)).coerceAtLeast(dp(2f))
-        fillPaint.color = C_GOLD
-        canvas.drawRoundRect(RectF(xpLeft, xpTop, xpLeft + xpFillW, xpTop + xpBarH), dp(2f), dp(2f), fillPaint)
-
-        // Центральная секция: Заголовок и 3 прогресс-бара со значками
-        val centerLeft = avRect.right + dp(10f)
-        val centerRight = divX - dp(10f)
-        val centerW = centerRight - centerLeft
-
-        canvas.drawText("CYBER-PET // БЛОК-ЮНИТ", centerLeft, panelRect.top + dp(18f), titleTextPaint)
-
-        val barW = centerW - dp(28f)
-        val barH = dp(5.5f)
-        val startBarsY = panelRect.top + dp(23f)
-        val stepBarY = dp(14f)
-
-        // 1) ⚡️ Энергия (неоновый изумруд)
-        drawStatBar(canvas, centerLeft, startBarsY, barW, barH, "⚡", state.energy, C_NEON_GREEN)
-
-        // 2) 🔥 Настроение (тактический янтарь)
-        drawStatBar(canvas, centerLeft, startBarsY + stepBarY, barW, barH, "🔥", state.mood, C_TACTICAL_AMBER)
-
-        // 3) 🍔 Сытость (электрический циан)
-        drawStatBar(canvas, centerLeft, startBarsY + stepBarY * 2f, barW, barH, "🍔", state.hunger, C_NEON_CYAN)
+        // 5. ВЕРХНЯЯ КАРТОЧКА СТАТОВ (HUD)
+        drawUpperHudCard(canvas, w, state)
     }
 
-    private fun drawStatBar(canvas: Canvas, x: Float, y: Float, width: Float, height: Float, icon: String, value: Int, color: Int) {
-        canvas.drawText(icon, x, y + dp(6.5f), statLabelPaint)
+    /**
+     * Отрисовка стен и паркета комнаты конструктора
+     */
+    private fun drawCozyRoomBackground(canvas: Canvas, w: Float, h: Float, time: Long) {
+        val floorY = h - dp(96f)
+        val wainscotY = floorY - dp(60f)
 
-        val barLeft = x + dp(16f)
-        val barTop = y + dp(1f)
-        val barRect = RectF(barLeft, barTop, barLeft + width, barTop + height)
+        // Верх стены: теплый песочно-кремовый
+        fillPaint.color = C_WALL_UPPER
+        canvas.drawRect(0f, 0f, w, wainscotY, fillPaint)
 
-        fillPaint.color = Color.parseColor("#111622")
-        canvas.drawRoundRect(barRect, height / 2f, height / 2f, fillPaint)
+        // Lego-пупырки на верхней стене
+        val studSpacing = dp(24f)
+        val studR = dp(3.2f)
+        var sy = dp(88f)
+        while (sy < wainscotY - dp(6f)) {
+            var sx = dp(14f)
+            while (sx < w - dp(10f)) {
+                fillPaint.color = C_WALL_STUD_SH
+                canvas.drawCircle(sx, sy + dp(0.8f), studR, fillPaint)
+                fillPaint.color = C_WALL_STUD
+                canvas.drawCircle(sx, sy, studR, fillPaint)
+                sx += studSpacing
+            }
+            sy += studSpacing
+        }
 
-        val fillW = (width * (value.coerceIn(0, 100) / 100f)).coerceAtLeast(height)
-        fillPaint.color = color
-        canvas.drawRoundRect(RectF(barLeft, barTop, barLeft + fillW, barTop + height), height / 2f, height / 2f, fillPaint)
+        // Нижняя часть стены (плинтус/панели): мягкий мятно-голубой
+        fillPaint.color = C_WALL_LOWER
+        canvas.drawRect(0f, wainscotY, w, floorY, fillPaint)
+
+        // Разделительный деревянный бордюр между стенами
+        fillPaint.color = C_WALL_BORDER
+        canvas.drawRect(0f, wainscotY - dp(4f), w, wainscotY, fillPaint)
+
+        // Пол: теплый деревянный паркет из кубиков
+        fillPaint.color = C_FLOOR_WOOD
+        canvas.drawRect(0f, floorY, w, h, fillPaint)
+
+        // Планки паркета со швами
+        val plankW = dp(52f)
+        val plankH = dp(18f)
+        strokePaint.color = C_FLOOR_SEAM
+        strokePaint.strokeWidth = dp(1.2f)
+
+        var py = floorY
+        var row = 0
+        while (py < h) {
+            val offset = if (row % 2 == 1) plankW / 2f else 0f
+            var px = -offset
+            while (px < w) {
+                fillPaint.color = if ((row + (px / plankW).toInt()) % 2 == 0) C_FLOOR_PLANK1 else C_FLOOR_PLANK2
+                canvas.drawRect(px, py, px + plankW, py + plankH, fillPaint)
+                canvas.drawRect(px, py, px + plankW, py + plankH, strokePaint)
+                px += plankW
+            }
+            py += plankH
+            row++
+        }
+    }
+
+    /**
+     * Окно, комнатный цветок, диванчик, миска и книжная полка из кубиков
+     */
+    private fun drawCozyFurniture(canvas: Canvas, w: Float, h: Float, state: IslandState, time: Long) {
+        val floorY = h - dp(96f)
+
+        // ==================== 1. УЮТНОЕ ОКНО ПО ЦЕНТРУ ====================
+        val winW = dp(106f)
+        val winH = dp(78f)
+        val winX = (w - winW) / 2f
+        val winY = dp(90f)
+
+        // Голубое небо за окном
+        fillPaint.color = C_SKY_BLUE
+        canvas.drawRect(winX, winY, winX + winW, winY + winH, fillPaint)
+
+        // Желтое солнышко
+        fillPaint.color = C_SUN_GOLD
+        canvas.drawCircle(winX + winW - dp(18f), winY + dp(18f), dp(12f), fillPaint)
+
+        // Белые мягкие облака, плавно плывущие по небу
+        val cloudShift = (time * 0.005f) % (winW + dp(40f)) - dp(20f)
+        fillPaint.color = C_CLOUD_WHITE
+        canvas.drawCircle(winX + cloudShift, winY + dp(28f), dp(10f), fillPaint)
+        canvas.drawCircle(winX + cloudShift + dp(12f), winY + dp(26f), dp(13f), fillPaint)
+        canvas.drawCircle(winX + cloudShift + dp(24f), winY + dp(29f), dp(9f), fillPaint)
+
+        // Белая рама окна с перекрестием
+        strokePaint.color = C_WINDOW_FRAME
+        strokePaint.strokeWidth = dp(4f)
+        canvas.drawRect(winX, winY, winX + winW, winY + winH, strokePaint)
+        canvas.drawLine(winX + winW / 2f, winY, winX + winW / 2f, winY + winH, strokePaint)
+        canvas.drawLine(winX, winY + winH / 2f, winX + winW, winY + winH / 2f, strokePaint)
+
+        // Подоконник
+        fillPaint.color = C_WINDOW_SILL
+        canvas.drawRect(winX - dp(4f), winY + winH, winX + winW + dp(4f), winY + winH + dp(4f), fillPaint)
+
+        // ==================== 2. СЛЕВА: ЦВЕТОК В ГОРШКЕ И ПУФИК ====================
+        val potX = dp(16f)
+        val potY = floorY - dp(28f)
+        // Терракотовый горшок
+        fillPaint.color = C_POT_TERRACOTTA
+        canvas.drawRect(potX, potY, potX + dp(26f), floorY, fillPaint)
+        // Зеленые круглые листочки
+        fillPaint.color = C_LEAF_GREEN
+        canvas.drawCircle(potX + dp(8f), potY - dp(12f), dp(10f), fillPaint)
+        fillPaint.color = C_LEAF_LIGHT
+        canvas.drawCircle(potX + dp(18f), potY - dp(16f), dp(12f), fillPaint)
+        fillPaint.color = C_LEAF_GREEN
+        canvas.drawCircle(potX + dp(24f), potY - dp(8f), dp(9f), fillPaint)
+
+        // Мягкий пуфик/креслице рядом
+        val chairX = potX + dp(32f)
+        fillPaint.color = C_CHAIR_CUSHION
+        canvas.drawRoundRect(chairX, floorY - dp(22f), chairX + dp(36f), floorY, dp(6f), dp(6f), fillPaint)
+
+        // ==================== 3. СПРАВА: МИСКА И ПОЛОЧКА ====================
+        val bowlX = w - dp(52f)
+        val bowlY = floorY - dp(14f)
+        // Голубая мисочка
+        fillPaint.color = C_BOWL_BLUE
+        canvas.drawRoundRect(bowlX, bowlY, bowlX + dp(32f), floorY, dp(4f), dp(4f), fillPaint)
+
+        // В миске: рыбка (для кота) или косточка (для собаки)
+        if (state.species == PetSpecies.DOG) {
+            fillPaint.color = C_BONE_WHITE
+            canvas.drawRect(bowlX + dp(6f), bowlY - dp(3f), bowlX + dp(26f), bowlY + dp(3f), fillPaint)
+        } else {
+            fillPaint.color = C_FISH_ORANGE
+            canvas.drawCircle(bowlX + dp(14f), bowlY - dp(2f), dp(5f), fillPaint)
+            canvas.drawRect(bowlX + dp(16f), bowlY - dp(4f), bowlX + dp(24f), bowlY, fillPaint)
+        }
+
+        // Книжная полочка на стене справа
+        val shelfX = w - dp(64f)
+        val shelfY = dp(112f)
+        fillPaint.color = C_SHELF_WOOD
+        canvas.drawRect(shelfX, shelfY + dp(18f), shelfX + dp(48f), shelfY + dp(22f), fillPaint)
+        // Книжки из кубиков
+        fillPaint.color = C_BOOK_RED
+        canvas.drawRect(shelfX + dp(6f), shelfY + dp(2f), shelfX + dp(13f), shelfY + dp(18f), fillPaint)
+        fillPaint.color = C_BOOK_BLUE
+        canvas.drawRect(shelfX + dp(16f), shelfY + dp(5f), shelfX + dp(24f), shelfY + dp(18f), fillPaint)
+        fillPaint.color = C_BOOK_GREEN
+        canvas.drawRect(shelfX + dp(27f), shelfY + dp(0f), shelfX + dp(34f), shelfY + dp(18f), fillPaint)
+    }
+
+    /**
+     * Верхняя светлая карточка HUD со статами в стиле дорогого конструктора
+     */
+    private fun drawUpperHudCard(canvas: Canvas, w: Float, state: IslandState) {
+        val cardX = dp(12f)
+        val cardY = dp(10f)
+        val cardW = w - dp(24f)
+        val cardH = dp(72f)
+        panelRect.set(cardX, cardY, cardX + cardW, cardY + cardH)
+
+        // 1. Фон карточки: теплый кремовый #FFFDF8
+        fillPaint.color = C_HUD_BG
+        canvas.drawRoundRect(panelRect, dp(14f), dp(14f), fillPaint)
+
+        // 2. Рамка конструктора: 2.5dp терракотовая
+        strokePaint.color = C_HUD_BORDER
+        strokePaint.strokeWidth = dp(2.2f)
+        canvas.drawRoundRect(panelRect, dp(14f), dp(14f), strokePaint)
+
+        // 3. Заголовок карточки слева
+        val petName = if (state.species == PetSpecies.DOG) "🐶 ПЕС ХАТИКО" else "🐱 КОТ РЫЖИК"
+        canvas.drawText(petName, cardX + dp(12f), cardY + dp(20f), titleTextPaint)
+
+        // 4. Правый блок: УРОВЕНЬ X и XP
+        val badgeW = dp(76f)
+        val badgeH = dp(20f)
+        val badgeX = cardX + cardW - badgeW - dp(10f)
+        val badgeY = cardY + dp(10f)
+
+        fillPaint.color = Color.parseColor("#F59E0B")
+        canvas.drawRoundRect(badgeX, badgeY, badgeX + badgeW, badgeY + badgeH, dp(10f), dp(10f), fillPaint)
+        canvas.drawText("УРОВЕНЬ ${state.petLevel}", badgeX + badgeW / 2f, badgeY + dp(14f), levelBadgePaint)
+
+        canvas.drawText("XP: ${state.xp}/100", badgeX + badgeW / 2f, badgeY + dp(33f), xpTextPaint)
+
+        // 5. ТРИ ЦВЕТНЫЕ ШКАЛЫ СТАТОВ
+        val barStartX = cardX + dp(12f)
+        val barY = cardY + dp(34f)
+        val totalBarsW = cardW - badgeW - dp(34f)
+        val eachBarW = (totalBarsW - dp(12f)) / 3f
+        val barH = dp(12f)
+
+        // Шкала 1: ❤️ Сытость
+        drawSingleStatPill(canvas, barStartX, barY, eachBarW, barH, "❤️", state.hunger, C_STAT_HUNGER)
+
+        // Шкала 2: 😊 Настроение
+        drawSingleStatPill(canvas, barStartX + eachBarW + dp(6f), barY, eachBarW, barH, "😊", state.mood, C_STAT_MOOD)
+
+        // Шкала 3: ⚡️ Энергия
+        drawSingleStatPill(canvas, barStartX + (eachBarW + dp(6f)) * 2f, barY, eachBarW, barH, "⚡", state.energy, C_STAT_ENERGY)
+    }
+
+    private fun drawSingleStatPill(
+        canvas: Canvas,
+        x: Float,
+        y: Float,
+        w: Float,
+        h: Float,
+        icon: String,
+        pct: Int,
+        fillColor: Int
+    ) {
+        // Подпись над шкалой
+        canvas.drawText("$icon $pct%", x + dp(2f), y + dp(8f), statLabelPaint)
+
+        val trackY = y + dp(12f)
+        val trackH = dp(7f)
+
+        // Серый трек
+        fillPaint.color = C_STAT_BG
+        canvas.drawRoundRect(x, trackY, x + w, trackY + trackH, dp(4f), dp(4f), fillPaint)
+
+        // Цветное заполнение
+        val fillW = (w * (pct.coerceIn(0, 100) / 100f)).coerceAtLeast(dp(4f))
+        fillPaint.color = fillColor
+        canvas.drawRoundRect(x, trackY, x + fillW, trackY + trackH, dp(4f), dp(4f), fillPaint)
+    }
+
+    private fun updateParticles() {
+        val iter = particles.iterator()
+        while (iter.hasNext()) {
+            val p = iter.next()
+            p.x += p.vx
+            p.y += p.vy
+            p.vy += dp(0.3f) // легкая гравитация
+            p.alpha -= 0.04f
+            if (p.alpha <= 0f) {
+                iter.remove()
+            }
+        }
+    }
+
+    private fun drawToyParticles(canvas: Canvas) {
+        for (p in particles) {
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = p.color
+                alpha = (p.alpha * 255).toInt().coerceIn(0, 255)
+            }
+            if (p.isHeart) {
+                paint.textSize = p.size * 2.2f
+                paint.textAlign = Paint.Align.CENTER
+                canvas.drawText("❤️", p.x, p.y, paint)
+            } else {
+                canvas.drawCircle(p.x, p.y, p.size, paint)
+            }
+        }
+    }
+
+    private fun spawnToyBurst(cx: Float, cy: Float) {
+        vibrateQuick()
+        val colors = listOf(
+            Color.parseColor("#EF4444"), // Red
+            Color.parseColor("#F59E0B"), // Amber
+            Color.parseColor("#10B981"), // Emerald
+            Color.parseColor("#3B82F6"), // Blue
+            Color.parseColor("#EC4899")  // Pink
+        )
+        for (i in 0..12) {
+            val angle = Random.nextFloat() * 6.28f
+            val speed = dp(Random.nextFloat() * 5f + 2f)
+            particles.add(
+                ToyParticle(
+                    x = cx,
+                    y = cy,
+                    vx = cos(angle) * speed,
+                    vy = sin(angle) * speed - dp(2.5f),
+                    size = dp(Random.nextFloat() * 4f + 3f),
+                    color = colors.random(),
+                    isHeart = (i % 3 == 0)
+                )
+            )
+        }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -453,40 +499,34 @@ class VoxelRoomView(context: Context) : View(context) {
             val y = event.y
 
             if (petTouchRect.contains(x, y)) {
-                vibrateTap()
-                spawnTapBurst(petTouchRect.centerX(), petTouchRect.centerY())
+                // Тапнули по питомцу -> играем, сыпятся сердечки и запускается WAVE_POKE!
+                spawnToyBurst(x, y)
                 IslandStateBus.playWithPet()
-                FirebaseCoupleManager.sendPartnerAction("HEART")
                 return true
-            }
-
-            if (!guestTouchRect.isEmpty && guestTouchRect.contains(x, y)) {
-                vibrateTap()
-                spawnTapBurst(guestTouchRect.centerX(), guestTouchRect.centerY())
+            } else if (!panelRect.contains(x, y)) {
+                // Тапнули по комнате -> салют конфеток и кормим/гладим
+                spawnToyBurst(x, y)
                 IslandStateBus.playWithPet()
-                FirebaseCoupleManager.sendPartnerAction("HEART")
                 return true
             }
         }
         return super.onTouchEvent(event)
     }
 
-    private fun vibrateTap() {
+    private fun vibrateQuick() {
         try {
-            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val v = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
                 vm?.defaultVibrator ?: (context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator)
             } else {
                 @Suppress("DEPRECATION")
                 context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
             }
-            if (vibrator != null && vibrator.hasVibrator()) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator.vibrate(VibrationEffect.createOneShot(35L, VibrationEffect.DEFAULT_AMPLITUDE))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator.vibrate(35L)
-                }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                v?.vibrate(VibrationEffect.createOneShot(16L, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                v?.vibrate(16L)
             }
         } catch (ignored: Exception) {
         }

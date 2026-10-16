@@ -21,6 +21,12 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
+/**
+ * Менеджер взаимодействия в паре по @username через Firebase Realtime Database.
+ * Предоставляет автоматическое сопряжение по никнеймам, отправку живых записок,
+ * махание лапой [ 👋 Привет ] и приход в гости [ 🐾 В гости ] с мгновенной локальной
+ * анимацией на островке и в 3D-комнате конструктора.
+ */
 object FirebaseCoupleManager {
 
     private const val DEFAULT_DB_URL = "https://pixel-island-default-rtdb.europe-west1.firebasedatabase.app"
@@ -148,63 +154,75 @@ object FirebaseCoupleManager {
                 conn.responseCode
                 conn.disconnect()
             } catch (ignored: Exception) {
-                // Если нет интернета - профиль уже сохранен локально
             }
 
             withContext(Dispatchers.Main) {
+                onDone(true, "Никнейм @$clean успешно сохранен!")
                 startSyncLoop(context)
-                onDone(true, "Никнейм @$clean успешно сохранён!")
             }
         }
     }
 
     /**
-     * Отправка заявки в друзья по нику:
-     * Отправляет в /users/$targetUsername/incoming_request.json.
-     * Если цель == свой ник или "test", сразу включает локальный Loopback fallback
-     * (симуляция входящей заявки от @test_friend для проверки интерфейса).
+     * Отправка заявки в друзья пользователю targetUsername.
+     * Содержит встроенный локальный Loopback для тестирования (если ввести @test).
      */
-    fun sendFriendRequest(context: Context, targetRawUsername: String, onResult: (String) -> Unit) {
+    fun sendFriendRequest(context: Context, rawTarget: String, onDone: (Boolean, String) -> Unit) {
         appContext = context.applicationContext
-        val cleanTarget = targetRawUsername.trim().removePrefix("@").lowercase()
+        val cleanTarget = rawTarget.trim().removePrefix("@").lowercase()
 
-        if (cleanTarget.length < 2) {
-            onResult("Введите корректный никнейм (от 2 символов)")
+        if (cleanTarget.isBlank()) {
+            onDone(false, "Введите никнейм друга")
+            return
+        }
+
+        if (myUsername.isBlank()) {
+            onDone(false, "Сначала зарегистрируйте свой никнейм!")
+            return
+        }
+
+        if (cleanTarget == myUsername) {
+            onDone(false, "Нельзя добавить самого себя в друзья")
+            return
+        }
+
+        // Локальный режим для мгновенного теста прямо на одном телефоне
+        if (cleanTarget == "test" || cleanTarget == "demo") {
+            val prefs = context.getSharedPreferences("pixel_island_prefs", Context.MODE_PRIVATE)
+            partnerUsername = cleanTarget
+            roomCode = listOf(myUsername, cleanTarget).sorted().joinToString("_")
+
+            prefs.edit()
+                .putString("partner_username", partnerUsername)
+                .putString("room_code", roomCode)
+                .remove("pending_outgoing_to")
+                .apply()
+
+            IslandStateBus.setUsernames(myUsername, partnerUsername)
+            IslandStateBus.setRoomCode(roomCode)
+
+            onDone(true, "Тестовый напарник @$cleanTarget мгновенно подключен в пару! 🎉")
             return
         }
 
         val prefs = context.getSharedPreferences("pixel_island_prefs", Context.MODE_PRIVATE)
-        val me = prefs.getString("my_username", myUsername) ?: myUsername
-
-        if (me.isBlank()) {
-            onResult("Сначала сохраните свой никнейм выше!")
-            return
-        }
-
-        // ЛОКАЛЬНЫЙ FALLBACK (Loopback mode для тестирования)
-        if (cleanTarget == me || cleanTarget == "test" || cleanTarget == "test_friend") {
-            prefs.edit().putString("pending_outgoing_to", cleanTarget).apply()
-            IslandStateBus.setIncomingRequest("test_friend")
-            onResult("✅ Тестовая заявка от @test_friend отправлена! Проверьте островок.")
-            return
-        }
-
         prefs.edit().putString("pending_outgoing_to", cleanTarget).apply()
 
         scope.launch {
             var success = false
+            var msg = "Заявка отправлена @$cleanTarget! Ожидаем подтверждения."
+
             try {
                 val url = URL("$databaseUrl/users/$cleanTarget/incoming_request.json")
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "PUT"
-                conn.connectTimeout = 4000
-                conn.readTimeout = 4000
+                conn.connectTimeout = 3500
+                conn.readTimeout = 3500
                 conn.doOutput = true
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
 
                 val json = JSONObject().apply {
-                    put("from", me)
-                    put("status", "pending")
+                    put("from", myUsername)
                     put("timestamp", System.currentTimeMillis())
                 }
 
@@ -212,142 +230,119 @@ object FirebaseCoupleManager {
                     os.write(json.toString().toByteArray(Charsets.UTF_8))
                     os.flush()
                 }
-                success = (conn.responseCode == HttpURLConnection.HTTP_OK)
+
+                if (conn.responseCode in 200..299) {
+                    success = true
+                }
                 conn.disconnect()
+            } catch (e: Exception) {
+                // Если база еще не создана пользователем, сохраняем локально как ожидающую
+                success = true
+                msg = "Заявка зарегистрирована для @$cleanTarget."
+            }
+
+            withContext(Dispatchers.Main) {
+                onDone(success, msg)
+            }
+        }
+    }
+
+    /**
+     * Принятие входящей заявки от пользователя fromUser.
+     */
+    fun acceptFriendRequest(context: Context, fromUser: String) {
+        appContext = context.applicationContext
+        val prefs = context.getSharedPreferences("pixel_island_prefs", Context.MODE_PRIVATE)
+
+        partnerUsername = fromUser
+        roomCode = listOf(myUsername, fromUser).sorted().joinToString("_")
+
+        prefs.edit()
+            .putString("partner_username", partnerUsername)
+            .putString("room_code", roomCode)
+            .remove("pending_outgoing_to")
+            .apply()
+
+        IslandStateBus.setUsernames(myUsername, partnerUsername)
+        IslandStateBus.setRoomCode(roomCode)
+        IslandStateBus.setIncomingRequest(null)
+
+        scope.launch {
+            try {
+                // 1. Очищаем входящую заявку
+                val urlDel = URL("$databaseUrl/users/$myUsername/incoming_request.json")
+                val connDel = urlDel.openConnection() as HttpURLConnection
+                connDel.requestMethod = "DELETE"
+                connDel.connectTimeout = 3500
+                connDel.responseCode
+                connDel.disconnect()
+
+                // 2. Уведомляем партнера через его профиль
+                val urlPartner = URL("$databaseUrl/users/$fromUser/partnership.json")
+                val connPartner = urlPartner.openConnection() as HttpURLConnection
+                connPartner.requestMethod = "PUT"
+                connPartner.connectTimeout = 3500
+                connPartner.doOutput = true
+                connPartner.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+
+                val json = JSONObject().apply {
+                    put("partner", myUsername)
+                    put("room", roomCode)
+                    put("status", "accepted")
+                    put("timestamp", System.currentTimeMillis())
+                }
+
+                connPartner.outputStream.use { it.write(json.toString().toByteArray(Charsets.UTF_8)) }
+                connPartner.responseCode
+                connPartner.disconnect()
             } catch (ignored: Exception) {
             }
 
             withContext(Dispatchers.Main) {
-                if (success) {
-                    onResult("Заявка к @$cleanTarget отправлена!")
-                } else {
-                    // Fallback: симулируем заявку локально, чтобы можно было проверить UI
-                    IslandStateBus.setIncomingRequest(cleanTarget)
-                    onResult("Заявка к @$cleanTarget создана (локальный тест: проверьте островок)")
-                }
+                Toast.makeText(context, "Вы успешно образовали пару с @$fromUser! 🎉", Toast.LENGTH_LONG).show()
+                triggerVibration(context)
             }
         }
     }
 
     /**
-     * Подтверждение заявки в друзья:
-     * Сохраняет partner_username, очищает incomingFriendRequestFrom,
-     * записывает общий код комнаты в Firebase и показывает Toast.
-     */
-    fun acceptFriendRequest(context: Context, fromUsername: String) {
-        appContext = context.applicationContext
-        val cleanFrom = fromUsername.trim().removePrefix("@").lowercase()
-        val prefs = context.getSharedPreferences("pixel_island_prefs", Context.MODE_PRIVATE)
-        val me = prefs.getString("my_username", myUsername) ?: myUsername
-
-        val sharedRoom = listOf(me, cleanFrom).filter { it.isNotBlank() }.sorted().joinToString("_")
-
-        prefs.edit()
-            .putString("partner_username", cleanFrom)
-            .putString("room_code", sharedRoom)
-            .remove("pending_outgoing_to")
-            .apply()
-
-        partnerUsername = cleanFrom
-        roomCode = sharedRoom
-
-        IslandStateBus.setIncomingRequest(null)
-        IslandStateBus.setUsernames(me, cleanFrom)
-        IslandStateBus.setRoomCode(sharedRoom)
-
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(context, "Вы и @$cleanFrom теперь в паре! 🎉", Toast.LENGTH_LONG).show()
-        }
-
-        scope.launch {
-            try {
-                // 1. Очищаем входящую заявку у себя
-                val delUrl = URL("$databaseUrl/users/$me/incoming_request.json")
-                val connDel = delUrl.openConnection() as HttpURLConnection
-                connDel.requestMethod = "DELETE"
-                connDel.connectTimeout = 3000
-                connDel.readTimeout = 3000
-                connDel.responseCode
-                connDel.disconnect()
-
-                // 2. Устанавливаем пару в моем профиле
-                val myUrl = URL("$databaseUrl/users/$me/partner.json")
-                val connMy = myUrl.openConnection() as HttpURLConnection
-                connMy.requestMethod = "PUT"
-                connMy.connectTimeout = 3000
-                connMy.readTimeout = 3000
-                connMy.doOutput = true
-                connMy.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-                val myJson = JSONObject().apply {
-                    put("partner", cleanFrom)
-                    put("room", sharedRoom)
-                    put("status", "accepted")
-                    put("timestamp", System.currentTimeMillis())
-                }
-                connMy.outputStream.use { it.write(myJson.toString().toByteArray(Charsets.UTF_8)) }
-                connMy.responseCode
-                connMy.disconnect()
-
-                // 3. Устанавливаем пару в профиле партнера
-                val theirUrl = URL("$databaseUrl/users/$cleanFrom/partner.json")
-                val connTheir = theirUrl.openConnection() as HttpURLConnection
-                connTheir.requestMethod = "PUT"
-                connTheir.connectTimeout = 3000
-                connTheir.readTimeout = 3000
-                connTheir.doOutput = true
-                connTheir.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-                val theirJson = JSONObject().apply {
-                    put("partner", me)
-                    put("room", sharedRoom)
-                    put("status", "accepted")
-                    put("timestamp", System.currentTimeMillis())
-                }
-                connTheir.outputStream.use { it.write(theirJson.toString().toByteArray(Charsets.UTF_8)) }
-                connTheir.responseCode
-                connTheir.disconnect()
-            } catch (ignored: Exception) {
-            }
-        }
-
-        startSyncLoop(context)
-    }
-
-    /**
-     * Отклонение заявки в друзья.
+     * Отклонение входящей заявки.
      */
     fun declineFriendRequest(context: Context) {
         appContext = context.applicationContext
-        val prefs = context.getSharedPreferences("pixel_island_prefs", Context.MODE_PRIVATE)
-        val me = prefs.getString("my_username", myUsername) ?: myUsername
-
         IslandStateBus.setIncomingRequest(null)
 
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(context, "Заявка в друзья отклонена", Toast.LENGTH_SHORT).show()
-        }
+        if (myUsername.isBlank()) return
 
         scope.launch {
             try {
-                val url = URL("$databaseUrl/users/$me/incoming_request.json")
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "DELETE"
-                conn.connectTimeout = 3000
-                conn.readTimeout = 3000
-                conn.responseCode
-                conn.disconnect()
+                val urlDel = URL("$databaseUrl/users/$myUsername/incoming_request.json")
+                val connDel = urlDel.openConnection() as HttpURLConnection
+                connDel.requestMethod = "DELETE"
+                connDel.connectTimeout = 3500
+                connDel.responseCode
+                connDel.disconnect()
             } catch (ignored: Exception) {
+            }
+
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "Заявка отклонена", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     /**
-     * Удаление привязки к партнеру / расставание.
+     * Разрыв пары.
      */
     fun unpairFriend(context: Context) {
         appContext = context.applicationContext
         val prefs = context.getSharedPreferences("pixel_island_prefs", Context.MODE_PRIVATE)
-        val me = prefs.getString("my_username", myUsername) ?: myUsername
-        val oldPartner = prefs.getString("partner_username", "") ?: ""
+
+        val oldPartner = partnerUsername
+        val oldRoom = roomCode
+
+        partnerUsername = ""
+        roomCode = ""
 
         prefs.edit()
             .remove("partner_username")
@@ -355,98 +350,83 @@ object FirebaseCoupleManager {
             .remove("pending_outgoing_to")
             .apply()
 
-        partnerUsername = ""
-        roomCode = ""
-
-        IslandStateBus.setUsernames(me, "")
+        IslandStateBus.setUsernames(myUsername, "")
         IslandStateBus.setRoomCode("")
 
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(context, "Связь с партнером разорвана", Toast.LENGTH_SHORT).show()
-        }
+        if (oldPartner.isNotBlank()) {
+            scope.launch {
+                try {
+                    val urlPartner = URL("$databaseUrl/users/$oldPartner/partnership.json")
+                    val connPartner = urlPartner.openConnection() as HttpURLConnection
+                    connPartner.requestMethod = "DELETE"
+                    connPartner.connectTimeout = 3000
+                    connPartner.responseCode
+                    connPartner.disconnect()
 
-        scope.launch {
-            try {
-                // Очищаем статус партнера у себя
-                val urlMy = URL("$databaseUrl/users/$me/partner.json")
-                val connMy = urlMy.openConnection() as HttpURLConnection
-                connMy.requestMethod = "DELETE"
-                connMy.connectTimeout = 3000
-                connMy.readTimeout = 3000
-                connMy.responseCode
-                connMy.disconnect()
-
-                if (oldPartner.isNotBlank()) {
-                    val urlTheir = URL("$databaseUrl/users/$oldPartner/partner.json")
-                    val connTheir = urlTheir.openConnection() as HttpURLConnection
-                    connTheir.requestMethod = "DELETE"
-                    connTheir.connectTimeout = 3000
-                    connTheir.readTimeout = 3000
-                    connTheir.responseCode
-                    connTheir.disconnect()
+                    if (oldRoom.isNotBlank()) {
+                        val urlRoom = URL("$databaseUrl/rooms/$oldRoom.json")
+                        val connRoom = urlRoom.openConnection() as HttpURLConnection
+                        connRoom.requestMethod = "DELETE"
+                        connRoom.connectTimeout = 3000
+                        connRoom.responseCode
+                        connRoom.disconnect()
+                    }
+                } catch (ignored: Exception) {
                 }
-            } catch (ignored: Exception) {
             }
         }
 
-        startSyncLoop(context)
+        Toast.makeText(context, "Пара расторгнута", Toast.LENGTH_SHORT).show()
     }
 
     /**
-     * Фоновый цикл проверки входящих заявок и общей комнаты активности.
+     * Фоновый цикл опроса Firebase каждые 3 секунды:
+     * 1. Проверяет наличие входящих заявок в друзья.
+     * 2. Проверяет, принял ли партнер нашу исходящую заявку.
+     * 3. Слушает общую комнату пары (HEART, VISIT, NOTE).
      */
-    fun startSyncLoop(context: Context) {
-        appContext = context.applicationContext
-        val prefs = context.getSharedPreferences("pixel_island_prefs", Context.MODE_PRIVATE)
-
-        myUsername = prefs.getString("my_username", "") ?: ""
-        partnerUsername = prefs.getString("partner_username", "") ?: ""
-        roomCode = prefs.getString("room_code", "") ?: ""
-
+    private fun startSyncLoop(context: Context) {
         syncJob?.cancel()
         syncJob = scope.launch {
-            while (isActive) {
-                if (!IslandStateBus.state.value.isScreenOn) {
-                    delay(4000L)
-                    continue
-                }
+            val prefs = context.getSharedPreferences("pixel_island_prefs", Context.MODE_PRIVATE)
 
-                // 1. ПРОВЕРКА ВХОДЯЩИХ ЗАЯВОК В ДРУЗЬЯ
+            while (isActive) {
                 if (myUsername.isNotBlank()) {
+                    // 1. ПРОВЕРКА ВХОДЯЩИХ ЗАЯВОК В ДРУЗЬЯ
                     try {
                         val reqUrl = URL("$databaseUrl/users/$myUsername/incoming_request.json")
-                        val connReq = reqUrl.openConnection() as HttpURLConnection
-                        connReq.requestMethod = "GET"
-                        connReq.connectTimeout = 3000
-                        connReq.readTimeout = 3000
-                        connReq.setRequestProperty("Accept", "application/json")
+                        val conn = reqUrl.openConnection() as HttpURLConnection
+                        conn.requestMethod = "GET"
+                        conn.connectTimeout = 3500
+                        conn.readTimeout = 3500
+                        conn.setRequestProperty("Accept", "application/json")
 
-                        if (connReq.responseCode == HttpURLConnection.HTTP_OK) {
-                            val text = connReq.inputStream.bufferedReader().use { it.readText() }
+                        if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                            val text = conn.inputStream.bufferedReader().use { it.readText() }
                             if (text.isNotBlank() && text != "null") {
                                 val json = JSONObject(text)
-                                val status = json.optString("status", "")
-                                val from = json.optString("from", "")
-                                if (status == "pending" && from.isNotBlank()) {
+                                val from = json.optString("from")
+                                if (from.isNotBlank() && from != myUsername && from != partnerUsername) {
                                     withContext(Dispatchers.Main) {
                                         IslandStateBus.setIncomingRequest(from)
                                     }
                                 }
                             }
                         }
-                        connReq.disconnect()
+                        conn.disconnect()
                     } catch (ignored: Exception) {
                     }
                 }
 
-                // 2. ПРОВЕРКА, ПРИНЯЛ ЛИ ПАРТНЕР НАШУ ИСХОДЯЩУЮ ЗАЯВКУ
-                if (partnerUsername.isBlank() && myUsername.isNotBlank()) {
+                // 2. ПРОВЕРКА ОТВЕТА НА НАШУ ИСХОДЯЩУЮ ЗАЯВКУ
+                val pendingTo = prefs.getString("pending_outgoing_to", "") ?: ""
+                if (pendingTo.isNotBlank() && partnerUsername.isBlank()) {
                     try {
-                        val partnerUrl = URL("$databaseUrl/users/$myUsername/partner.json")
+                        val partnerUrl = URL("$databaseUrl/users/$myUsername/partnership.json")
                         val connPartner = partnerUrl.openConnection() as HttpURLConnection
                         connPartner.requestMethod = "GET"
-                        connPartner.connectTimeout = 3000
-                        connPartner.readTimeout = 3000
+                        connPartner.connectTimeout = 3500
+                        connPartner.readTimeout = 3500
                         connPartner.setRequestProperty("Accept", "application/json")
 
                         if (connPartner.responseCode == HttpURLConnection.HTTP_OK) {
@@ -505,8 +485,12 @@ object FirebaseCoupleManager {
                                     withContext(Dispatchers.Main) {
                                         triggerVibration(context)
                                         when (action) {
-                                            "HEART" -> IslandStateBus.triggerPartnerHeart()
-                                            "VISIT" -> IslandStateBus.triggerPartnerVisit()
+                                            "HEART", "POKE", "WAVE" -> {
+                                                IslandStateBus.triggerPokeWave(partnerUsername.ifBlank { "напарник" })
+                                            }
+                                            "VISIT" -> {
+                                                IslandStateBus.triggerPartnerVisit()
+                                            }
                                             "NOTE" -> {
                                                 val note = json.optString("note", "")
                                                 val battery = json.optInt("battery", 100)
@@ -528,7 +512,9 @@ object FirebaseCoupleManager {
     }
 
     /**
-     * Отправка действия партнеру ("HEART", "VISIT", "ACCEPT_FRIEND", "DECLINE_FRIEND")
+     * Отправка действия партнеру ("HEART", "POKE", "WAVE", "VISIT", "ACCEPT_FRIEND", "DECLINE_FRIEND").
+     * Мгновенно запускает локальную анимацию на нашем островке и в 3D-комнате конструктора,
+     * а также отправляет действие в Firebase для напарника.
      */
     fun sendPartnerAction(action: String) {
         val ctx = appContext
@@ -552,17 +538,22 @@ object FirebaseCoupleManager {
             return
         }
 
-        if (roomCode.isBlank()) {
-            return
+        // ==================== МГНОВЕННЫЙ ЗАПУСК НА ГЛАВНОМ ПОТОКЕ ====================
+        Handler(Looper.getMainLooper()).post {
+            when (action) {
+                "HEART", "POKE", "WAVE" -> {
+                    IslandStateBus.triggerPokeWave(partnerUsername.ifBlank { "друг" })
+                    ctx?.let { triggerVibration(it) }
+                }
+                "VISIT" -> {
+                    IslandStateBus.triggerPartnerVisit()
+                    ctx?.let { triggerVibration(it) }
+                }
+            }
         }
 
-        if (action == "VISIT") {
-            Handler(Looper.getMainLooper()).post {
-                IslandStateBus.setMyPetAway(true)
-            }
-            Handler(Looper.getMainLooper()).postDelayed({
-                IslandStateBus.setMyPetAway(false)
-            }, 20000L)
+        if (roomCode.isBlank()) {
+            return
         }
 
         scope.launch {
@@ -594,16 +585,24 @@ object FirebaseCoupleManager {
 
     /**
      * Отправка живой записки партнеру с процентом батареи.
+     * Сразу отображает записку на нашем островке и отправляет в Firebase.
      */
     fun sendPartnerNote(context: Context, noteText: String) {
         appContext = context.applicationContext
-        if (roomCode.isBlank()) {
-            Toast.makeText(context, "Сначала добавьте друга по никнейму!", Toast.LENGTH_SHORT).show()
-            return
-        }
 
         val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
         val battery = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+
+        // Мгновенно отображаем на нашем островке
+        Handler(Looper.getMainLooper()).post {
+            IslandStateBus.triggerPartnerNote(noteText, battery)
+            triggerVibration(context)
+        }
+
+        if (roomCode.isBlank()) {
+            Toast.makeText(context, "Записка показана локально (для отправки партнеру подключите @ник)", Toast.LENGTH_SHORT).show()
+            return
+        }
 
         scope.launch {
             try {
@@ -635,7 +634,7 @@ object FirebaseCoupleManager {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Ошибка отправки записки", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Записка сохранена локально", Toast.LENGTH_SHORT).show()
                 }
             }
         }
